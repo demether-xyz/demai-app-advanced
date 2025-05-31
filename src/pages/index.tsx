@@ -1,17 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import DemaiTerminal from '@/components/DemaiTerminal';
+// import DemaiTerminal from '@/components/DemaiTerminal'; // Hidden for now
 import DemaiChat from '@/components/DemaiChat';
-import DemaiPipelineMap from '@/components/DemaiPipelineMap';
+import DemAIVisor from '@/components/DemAIVisor';
 import DemaiNavbar from '@/components/DemaiNavbar';
 import DemaiConnectModal, { DEMAI_AUTH_MESSAGE } from '@/components/DemaiConnectModal';
 
 const DemaiPage = () => {
   const { isConnected, address } = useAccount();
-  const [isDraggingVertical, setIsDraggingVertical] = useState(false);
   const [isDraggingHorizontal, setIsDraggingHorizontal] = useState(false);
-  const [verticalSplit, setVerticalSplit] = useState(50); // Percentage
-  const [horizontalSplit, setHorizontalSplit] = useState(66.67); // Percentage
+  const [horizontalSplit, setHorizontalSplit] = useState(60); // Adjusted for better proportions
   const [hasValidSignature, setHasValidSignature] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -39,30 +37,22 @@ const DemaiPage = () => {
   }, [address, mounted]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDraggingVertical) {
+    if (isDraggingHorizontal) {
       const container = document.getElementById('demai-container');
       if (container) {
         const containerRect = container.getBoundingClientRect();
-        const percentage = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-        setVerticalSplit(Math.min(Math.max(percentage, 20), 80));
-      }
-    } else if (isDraggingHorizontal) {
-      const leftPanel = document.getElementById('left-panel');
-      if (leftPanel) {
-        const panelRect = leftPanel.getBoundingClientRect();
-        const percentage = ((e.clientY - panelRect.top) / panelRect.height) * 100;
-        setHorizontalSplit(Math.min(Math.max(percentage, 20), 80));
+        const percentage = ((e.clientY - containerRect.top) / containerRect.height) * 100;
+        setHorizontalSplit(Math.min(Math.max(percentage, 30), 80));
       }
     }
-  }, [isDraggingVertical, isDraggingHorizontal]);
+  }, [isDraggingHorizontal]);
 
   const handleMouseUp = useCallback(() => {
-    setIsDraggingVertical(false);
     setIsDraggingHorizontal(false);
   }, []);
 
   useEffect(() => {
-    if (isDraggingVertical || isDraggingHorizontal) {
+    if (isDraggingHorizontal) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -70,10 +60,11 @@ const DemaiPage = () => {
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDraggingVertical, isDraggingHorizontal, handleMouseMove, handleMouseUp]);
+  }, [isDraggingHorizontal, handleMouseMove, handleMouseUp]);
 
   // Show modal if either not connected or no valid signature
-  const shouldShowModal = !isConnected || !hasValidSignature;
+  // const shouldShowModal = !isConnected || !hasValidSignature;
+  const shouldShowModal = false; // Temporarily disabled for UI iteration
 
   // Don't render anything until mounted
   if (!mounted) {
@@ -90,57 +81,42 @@ const DemaiPage = () => {
         }} 
       />
       {!shouldShowModal && (
-        <div className="flex flex-col h-screen w-full">
+        <div className="flex flex-col h-screen w-full bg-gradient-to-br from-black via-gray-900 to-black">
+          {/* Futuristic background effects */}
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-transparent to-transparent pointer-events-none" />
+          
           <DemaiNavbar />
-          <div id="demai-container" className="flex flex-1 w-full select-none">
-            {/* Left Column: Visual Map (Top) and Chat (Bottom) */}
-            <div
-              id="left-panel"
-              className="flex flex-col h-full"
-              style={{ width: `${verticalSplit}%` }}
-            >
-              {/* Visual Map Section */}
-              <div
-                className="relative"
-                style={{ height: `${horizontalSplit}%` }}
-              >
-                <div className="absolute inset-0 bg-black">
-                  <DemaiPipelineMap />
+          
+          <div id="demai-container" className="flex flex-col flex-1 w-full select-none relative">
+            {/* demAI Visor Interface Section - Now full height */}
+            <div className="relative flex-1">
+              <div className="absolute inset-0 bg-gradient-to-b from-black/80 to-black/60 backdrop-blur-sm">
+                {/* Glowing border effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 via-purple-400/10 to-pink-400/10 blur-sm" />
+                <div className="absolute inset-1 bg-black/90 rounded-lg">
+                  <DemAIVisor />
                 </div>
               </div>
-
-              {/* Horizontal Resize Handle */}
-              <div
-                className="h-1 bg-neutral-800 hover:bg-amber-400 cursor-ns-resize"
-                onMouseDown={() => setIsDraggingHorizontal(true)}
-              />
-
-              {/* Chat Interface Section */}
-              <div
-                className="relative"
-                style={{ height: `${100 - horizontalSplit}%` }}
-              >
-                <div className="absolute inset-0 bg-black">
-                  <DemaiChat />
+              
+              {/* Section label */}
+              <div className="absolute top-4 left-4 z-10">
+                <div className="px-3 py-1 bg-cyan-500/20 border border-cyan-400/30 rounded-full backdrop-blur-sm">
+                  <span className="text-cyan-300 text-sm font-medium tracking-wide">demAI INTERFACE</span>
                 </div>
               </div>
             </div>
-
-            {/* Vertical Resize Handle */}
-            <div
-              className="w-1 bg-neutral-800 hover:bg-amber-400 cursor-ew-resize"
-              onMouseDown={() => setIsDraggingVertical(true)}
-            />
-
-            {/* Right Column: Terminal */}
-            <div
-              className="bg-black h-full relative"
-              style={{ width: `${100 - verticalSplit}%` }}
-            >
-              <div className="absolute inset-0">
-                <DemaiTerminal />
-              </div>
-            </div>
+          </div>
+          
+          {/* Animated grid overlay */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none">
+            <div className="absolute inset-0" style={{
+              backgroundImage: `
+                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px)
+              `,
+              backgroundSize: '50px 50px'
+            }} />
           </div>
         </div>
       )}

@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;300;500;600;800&display=swap');
+@import 'tailwindcss';
+
+:root {
+  /* Core Brand Colors */
+  --brand-primary: #2563eb; /* Main brand color - blue */
+  --brand-secondary: #60a5fa; /* Secondary brand color - refined medium blue */
+  --brand-accent: #f97316; /* Accent color - orange */
+
+  /* Background Colors */
+  --brand-bg-primary: #dbeafe; /* Light blue background */
+  --brand-bg-secondary: #f8fafc; /* Very light gray-blue */
+
+  /* Neutral Colors */
+  --brand-black: #171717; /* Rich black for text */
+  --brand-dark: #111827; /* Dark gray for secondary text */
+  --brand-gray: #6b7280; /* Medium gray for supporting text */
+  --brand-light: #f3f4f6; /* Light gray for backgrounds */
+
+  /* Functional Colors */
+  --brand-success: #22c55e; /* Success states - green */
+  --brand-warning: #f59e0b; /* Warning states - amber */
+  --brand-error: #ef4444; /* Error states - red */
+  --brand-info: #3b82f6; /* Information states - blue */
+
+  /* System Colors */
+  --background: #ffffff;
+  --foreground: #000000;
+  --brand-link: var(--brand-primary);
+
+  --agent-card-1: #6b2c7d;
+  --agent-card-2: #7b97ff;
+  --agent-card-3: #4c6fff;
+  --agent-card-4: #00bcd4;
+  --agent-card-5: #ff6b81;
+  --agent-card-6: #1a237e;
+  --agent-card-7: #9fa8ff;
+  --agent-card-8: #00c853;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: 'Inter', Arial, Helvetica, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: #000;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+}
+
+/* Typography System */
+h1 {
+  @apply font-['Poppins'] text-5xl font-light tracking-tight text-gray-900 md:text-6xl lg:text-[4.5rem] lg:leading-[1.2] lg:tracking-[-0.02em];
+}
+
+h2 {
+  @apply font-['Poppins'] text-4xl font-light tracking-tight text-gray-900 md:tracking-[-0.02em] lg:text-5xl lg:leading-[1.2];
+}
+
+h3 {
+  @apply font-['Poppins'] text-3xl font-light text-gray-900 lg:text-4xl lg:leading-[1.2];
+}
+
+h4 {
+  @apply font-['Poppins'] text-2xl font-light text-gray-900 lg:text-3xl;
+}
+
+h5 {
+  @apply font-['Poppins'] text-xl font-normal text-gray-900 lg:text-2xl;
+}
+
+h6 {
+  @apply font-['Poppins'] text-lg font-normal text-gray-900;
+}
+
+.nav-gradient-underline {
+  @apply relative text-sm font-medium;
+}
+.nav-gradient-underline::after {
+  content: '';
+  display: block;
+  height: 1px;
+  width: 100%;
+  transform: scaleX(0);
+  transition: transform 0.3s;
+  background-image: linear-gradient(to right, #ef4444, #3b82f6); /* Tailwind's red-500 to blue-500 */
+  transform-origin: left;
+  opacity: 0.8;
+}
+.nav-gradient-underline:hover::after {
+  transform: scaleX(1);
+}

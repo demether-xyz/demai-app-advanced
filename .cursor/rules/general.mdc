@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# General
+
+- Use clean and non-verbose code
+- For Backend, always use poetry, we use FastAPI
+- For Frontend use pnpm

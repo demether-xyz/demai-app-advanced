@@ -1,93 +1,71 @@
 import React from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { MagnifyingGlassIcon, Cog6ToothIcon, Bars3Icon, UserIcon } from '@heroicons/react/24/outline';
 
 const DemaiNavbar: React.FC = () => {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-
-  const handleConnection = () => {
-    if (isConnected) {
-      disconnect();
-    } else {
-      connect({ connector: connectors[0] });
-    }
-  };
-
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-
   return (
-    <nav className="h-16 bg-gradient-to-r from-black via-gray-900/95 to-black border-b border-cyan-500/20 px-6 flex items-center justify-between relative backdrop-blur-sm">
-      {/* Glowing top border */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent" />
-      
-      {/* Logo Section */}
+    <nav className="h-12 bg-black/90 backdrop-blur-sm border-b border-gray-600/30 px-6 flex items-center justify-between relative">
+      {/* Left Section - Logo */}
       <div className="flex items-center space-x-8">
         <div className="flex items-center space-x-2">
-          <div className="relative w-40 h-40 group">
-            {/* Glow effect behind logo */}
-            <div className="absolute inset-0 bg-cyan-400/20 rounded-full blur-xl group-hover:bg-cyan-400/30 transition-all duration-300" />
+          {/* Logo */}
+          <div className="relative w-36 h-12">
             <Image
               src="/images/logo.webp"
-              alt="demAI Logo"
+              alt="Logo"
               fill
-              className="object-contain relative z-10 drop-shadow-[0_0_10px_rgba(0,255,255,0.3)]"
+              className="object-contain"
               priority
             />
           </div>
         </div>
+      </div>
 
-        {/* Navigation Links */}
-        <div className="flex items-center space-x-8">
-          <Link
-            href="#"
-            className="relative text-cyan-300 hover:text-cyan-100 font-medium tracking-wide transition-all duration-300 group"
-          >
-            <span className="relative z-10">DEPOSIT</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/20 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg blur-sm" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          </Link>
-          <Link
-            href="#"
-            className="relative text-cyan-300 hover:text-cyan-100 font-medium tracking-wide transition-all duration-300 group"
-          >
-            <span className="relative z-10">WITHDRAW</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/20 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg blur-sm" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          </Link>
+      {/* Center Section - Search Bar */}
+      <div className="flex-1 max-w-sm mx-8">
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search..."
+            className="w-full bg-gray-700/80 border border-gray-600/40 rounded-md pl-10 pr-4 py-1.5 text-sm text-gray-200 placeholder-gray-400 focus:outline-none focus:border-gray-500/60 focus:bg-gray-600/80 transition-all duration-200"
+          />
         </div>
       </div>
 
-      {/* Connect Button */}
-      <button
-        onClick={handleConnection}
-        className="relative px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black font-medium rounded-lg transition-all duration-300 group overflow-hidden"
-      >
-        {/* Button glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-400 opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-xl" />
-        
-        {/* Button content */}
-        <span className="relative z-10 tracking-wide">
-          {isConnected ? formatAddress(address!) : 'CONNECT WALLET'}
-        </span>
-        
-        {/* Animated border */}
-        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
-             style={{ padding: '1px' }}>
-          <div className="w-full h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg" />
+      {/* Right Section - Navigation Tabs and Controls */}
+      <div className="flex items-center space-x-4">
+        {/* Navigation Tabs */}
+        <div className="flex items-center space-x-1">
+          <button className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-300 transition-colors duration-200">
+            Statistics
+          </button>
+          <button className="px-3 py-1.5 text-sm bg-gray-700/60 text-gray-200 rounded-md border border-gray-600/40">
+            Overview
+          </button>
+          <button className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-300 transition-colors duration-200">
+            Dashboard
+          </button>
+          <button className="px-3 py-1.5 text-sm text-gray-400 hover:text-gray-300 transition-colors duration-200">
+            Analytics
+          </button>
         </div>
-      </button>
-      
-      {/* Status indicator for connected wallet */}
-      {isConnected && (
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-      )}
+
+        {/* Right Controls */}
+        <div className="flex items-center space-x-2">
+          <button className="p-1.5 text-gray-500 hover:text-gray-300 transition-colors duration-200">
+            <Cog6ToothIcon className="w-4 h-4" />
+          </button>
+          <button className="p-1.5 text-gray-500 hover:text-gray-300 transition-colors duration-200">
+            <Bars3Icon className="w-4 h-4" />
+          </button>
+          <button className="p-1.5 text-gray-500 hover:text-gray-300 transition-colors duration-200">
+            <UserIcon className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
     </nav>
   );
 };
 
-export default DemaiNavbar; 
+export default DemaiNavbar;

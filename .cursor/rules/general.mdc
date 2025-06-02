@@ -6,6 +6,7 @@ alwaysApply: true
 # General
 
 - We are building the UI/UX for the brand, generalize as you go from styles/global.css to reusable components
+- App is running to need to run every time
 - Use clean and non-verbose code
 - For Backend, always use poetry, we use FastAPI
 - For Frontend use pnpm

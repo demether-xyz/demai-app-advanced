@@ -58,31 +58,6 @@ body {
   font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
-/* Typography System */
-h1 {
-  @apply font-['Poppins'] text-5xl font-light tracking-tight text-gray-900 md:text-6xl lg:text-[4.5rem] lg:leading-[1.2] lg:tracking-[-0.02em];
-}
-
-h2 {
-  @apply font-['Poppins'] text-4xl font-light tracking-tight text-gray-900 md:tracking-[-0.02em] lg:text-5xl lg:leading-[1.2];
-}
-
-h3 {
-  @apply font-['Poppins'] text-3xl font-light text-gray-900 lg:text-4xl lg:leading-[1.2];
-}
-
-h4 {
-  @apply font-['Poppins'] text-2xl font-light text-gray-900 lg:text-3xl;
-}
-
-h5 {
-  @apply font-['Poppins'] text-xl font-normal text-gray-900 lg:text-2xl;
-}
-
-h6 {
-  @apply font-['Poppins'] text-lg font-normal text-gray-900;
-}
-
 .nav-gradient-underline {
   @apply relative text-sm font-medium;
 }

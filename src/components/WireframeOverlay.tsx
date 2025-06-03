@@ -818,6 +818,9 @@ const WireframeOverlay = () => {
 
         // Create initial trail points for visual effect
         const createTrail = () => {
+          // First, clear any existing trails for this window to prevent duplicates
+          setAnimationTrails((prev) => prev.filter((trail) => !trail.id.startsWith(`${windowId}-trail`)))
+          
           const trailPoints: Array<{
             id: string
             x: number
@@ -826,16 +829,17 @@ const WireframeOverlay = () => {
             timestamp: number
           }> = []
           const steps = 8
+          const trailTimestamp = Date.now()
           for (let i = 0; i < steps; i++) {
             const progress = i / steps
             const x = startX + (finalX - startX) * progress
             const y = startY + (finalY - startY) * progress
             trailPoints.push({
-              id: `${windowId}-trail-${i}`,
+              id: `${windowId}-trail-${trailTimestamp}-${i}`,
               x,
               y,
               opacity: 0.3 - i * 0.03,
-              timestamp: Date.now() + i * 100,
+              timestamp: trailTimestamp + i * 100,
             })
           }
           setAnimationTrails((prev) => [...prev, ...trailPoints])
@@ -914,28 +918,41 @@ const WireframeOverlay = () => {
       const store = useAppStore.getState()
       const allEvents = store.events
 
-      // Find the most recent app.openwindow.{windowId} event
-      let mostRecentEvent: { windowId: string; timestamp: number } | null = null
+      // Find ALL unprocessed app.openwindow.{windowId} events and sort by timestamp
+      const pendingEvents: Array<{ windowId: string; timestamp: number }> = []
 
       Object.entries(allEvents).forEach(([eventKey, timestamp]) => {
         if (eventKey.startsWith('app.openwindow.') && eventKey !== 'app.openwindow') {
           const windowId = eventKey.replace('app.openwindow.', '')
           const timestampNum = typeof timestamp === 'number' ? timestamp : 0
-          if (!mostRecentEvent || timestampNum > mostRecentEvent.timestamp) {
-            mostRecentEvent = { windowId, timestamp: timestampNum }
+          const lastProcessed = processedRequests.current[windowId] || 0
+          
+          // Only include events that haven't been processed yet
+          if (timestampNum > lastProcessed) {
+            pendingEvents.push({ windowId, timestamp: timestampNum })
           }
         }
       })
 
-      // Open the most recent window if we haven't processed this timestamp yet
-      if (mostRecentEvent) {
-        const lastProcessed = processedRequests.current[mostRecentEvent.windowId] || 0
-        if (mostRecentEvent.timestamp > lastProcessed && !expandedWindowsRef.current.has(mostRecentEvent.windowId)) {
-          console.log(`Opening window from hierarchical event: ${mostRecentEvent.windowId} at ${mostRecentEvent.timestamp}`)
-          expandWindowCallback(mostRecentEvent.windowId)
-          processedRequests.current[mostRecentEvent.windowId] = mostRecentEvent.timestamp
+      // Sort events by timestamp to process them in order
+      pendingEvents.sort((a, b) => a.timestamp - b.timestamp)
+
+      // Process all pending events in order
+      pendingEvents.forEach(({ windowId, timestamp }) => {
+        console.log(`Processing window event: ${windowId} at ${timestamp}`)
+        
+        // Handle special 'close-all' command
+        if (windowId === 'close-all') {
+          console.log('Closing all windows from close-all event')
+          collapseAllWindows()
+        } else if (!expandedWindowsRef.current.has(windowId)) {
+          console.log(`Opening window from hierarchical event: ${windowId}`)
+          expandWindowCallback(windowId)
         }
-      }
+        
+        // Mark this event as processed
+        processedRequests.current[windowId] = timestamp
+      })
     }
   }, [openWindowEvents, expandWindowCallback])
 

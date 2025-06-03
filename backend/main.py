@@ -54,8 +54,12 @@ async def chat_endpoint(request: ChatRequest):
     # if not is_valid:
     #     raise HTTPException(status_code=401, detail="Invalid signature or wallet address")
 
-    # Run the chatbot with the user's message and include wallet address
-    response = run_chatbot(request.message, chat_id=request.wallet_address)
+    # Run the chatbot with the user's message and wallet address
+    # The assistant.py has hardcoded window list, no need to pass from frontend
+    response = run_chatbot(
+        message=request.message, 
+        chat_id=request.wallet_address
+    )
     return {"response": response}
 
 if __name__ == "__main__":

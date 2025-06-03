@@ -29,90 +29,17 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
   // Add openWindow hook for triggering window events
   const openWindow = useOpenWindow()
 
-  // Remove dummy conversation - start with clean chat
-  // const dummyConversation: ChatMessage[] = [...]
-
-  // Function to detect and trigger window events from AI responses
-  const processWindowEvents = (message: string) => {
-    // Define trigger patterns and their corresponding window IDs
-    const windowTriggers = [
-      { pattern: /show portfolio|portfolio analysis|view portfolio/i, windowId: 'portfolio' },
-      { pattern: /high yield|best yield|analyze high yield/i, windowId: 'high-yield' },
-      { pattern: /show yearn|yearn vault|yearn analysis/i, windowId: 'yearn-vault' },
-      { pattern: /risk analysis|show risks|analyze risks/i, windowId: 'risk-analysis' },
-      { pattern: /compound eth|show compound/i, windowId: 'compound-eth' },
-      { pattern: /curve pool|show curve|curve 3pool/i, windowId: 'curve-3pool' },
-      { pattern: /uniswap|show uniswap|uniswap v4/i, windowId: 'uniswap-v4' },
-      { pattern: /ai strategy|show strategy|strategy analysis/i, windowId: 'ai-strategy' },
-      { pattern: /smart contract|contract risk/i, windowId: 'smart-contract-risk' },
-      { pattern: /liquidation|liquidation alert/i, windowId: 'liquidation-alert' },
-      { pattern: /staking rewards|show staking/i, windowId: 'staking-rewards' },
-      { pattern: /balancer|show balancer/i, windowId: 'balancer-pool' },
-      { pattern: /convex|show convex/i, windowId: 'convex-crv' },
-      { pattern: /alerts|show alerts/i, windowId: 'alerts' },
-    ]
-
-    // Check for trigger patterns and emit events
-    windowTriggers.forEach(({ pattern, windowId }) => {
-      if (pattern.test(message)) {
-        console.log(`Chat message triggered window event: ${windowId}`)
-        openWindow(windowId)
-      }
-    })
-  }
-
-  // Enhanced AI response generator with window event triggers
-  const generateAIResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase()
-    
-    // Check for window trigger commands first
-    if (lowerMessage.includes('show portfolio') || lowerMessage.includes('portfolio')) {
-      openWindow('portfolio')
-      return 'Opening your portfolio analysis window...\n\n📊 Your current portfolio:\n• Total Value: $24,847.32\n• Active Strategies: 3\n• 24h Change: +5.2%\n\n🚀 Window Event: portfolio'
-    }
-    
-    if (lowerMessage.includes('high yield') || lowerMessage.includes('best yield')) {
-      openWindow('high-yield')
-      return 'Analyzing current high yield opportunities...\n\n🎯 Top Opportunities:\n• Yearn USDT: 6.3% APY\n• Curve 3Pool: 5.1% APY\n• Aave USDC: 4.2% APY\n• Compound DAI: 3.8% APY\n\n🚀 Window Event: high-yield'
-    }
-    
-    if (lowerMessage.includes('yearn') || lowerMessage.includes('vault')) {
-      openWindow('yearn-vault')
-      return 'Opening Yearn Vault detailed analysis...\n\n🏛️ Yearn USDT Vault:\n• Current APY: 6.3%\n• TVL: $2.1B\n• Risk Level: Medium\n• Strategy: Auto-compounding\n\n🚀 Window Event: yearn-vault'
-    }
-    
-    if (lowerMessage.includes('risk') || lowerMessage.includes('analyze risk')) {
-      openWindow('risk-analysis')
-      return 'Performing comprehensive risk analysis...\n\n⚠️ Portfolio Risk Assessment:\n• Overall Risk: Medium\n• Liquidation Risk: Low\n• Smart Contract Risk: Medium\n• Market Risk: High\n\n🚀 Window Event: risk-analysis'
-    }
-    
-    if (lowerMessage.includes('compound')) {
-      openWindow('compound-eth')
-      return 'Analyzing Compound ETH position...\n\n🏗️ Compound ETH:\n• Current APY: 3.8%\n• Your Position: $8,750\n• Collateral Ratio: 150%\n• Health Factor: 2.5\n\n🚀 Window Event: compound-eth'
-    }
-    
-    if (lowerMessage.includes('curve')) {
-      openWindow('curve-3pool')
-      return 'Opening Curve 3Pool analysis...\n\n🌊 Curve 3Pool:\n• Current APY: 5.1%\n• Pool TVL: $1.2B\n• Your LP Position: $15,200\n• Impermanent Loss: Minimal\n\n🚀 Window Event: curve-3pool'
-    }
-    
-    if (lowerMessage.includes('strategy') || lowerMessage.includes('ai strategy')) {
-      openWindow('ai-strategy')
-      return 'Generating AI-powered yield strategy...\n\n🤖 Recommended Strategy:\n• 40% Stable Yields (Aave/Compound)\n• 35% LP Positions (Curve/Uniswap)\n• 25% High-Risk/High-Reward (Yearn)\n\nExpected APY: 8.2%\n\n🚀 Window Event: ai-strategy'
-    }
-    
-    // Default responses based on keywords
-    if (lowerMessage.includes('yield') || lowerMessage.includes('apy')) {
-      return 'Current yield opportunities:\n\n🔥 Hot Picks:\n• Yearn USDT Vault: 6.3% APY\n• Curve 3Pool: 5.1% APY\n• Aave USDC: 4.2% APY\n• Compound DAI: 3.8% APY\n\nTry asking "show high yield" to open detailed analysis!'
-    }
-    
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-      return 'Hello! 👋 I\'m demAI, your DeFi yield optimization assistant.\n\n🔧 What I can help with:\n• Portfolio analysis\n• Yield optimization\n• Risk assessment\n• Strategy recommendations\n\n💡 Try commands like:\n• "show portfolio"\n• "analyze high yield"\n• "show risks"\n• "ai strategy"'
-    }
-    
-    // Generic response
-    return 'I understand you\'re asking about DeFi strategies. Let me help you optimize your yields!\n\n💡 Available commands:\n• "show portfolio" - View your positions\n• "high yield" - Find best opportunities\n• "analyze risks" - Risk assessment\n• "ai strategy" - Get AI recommendations\n\nEach command will open a detailed analysis window! 🚀'
-  }
+  // Add hardcoded window IDs list
+  const AVAILABLE_WINDOW_IDS = [
+    'high-yield', 'compound-eth', 'curve-3pool', 'uniswap-v4', 'portfolio', 'staking-rewards',
+    'yearn-vault', 'balancer-pool', 'convex-crv', 'market-data', 'sushiswap-farm', 'maker-dai',
+    'rocket-pool', 'frax-share', 'lido-steth', 'gmx-glp', 'pendle-yield', 'tokemak-reactor',
+    'olympus-ohm', 'ribbon-vault', 'risk-analysis', 'alerts', 'ai-strategy', 'smart-contract-risk',
+    'liquidation-alert', 'impermanent-loss', 'protocol-governance', 'bridge-security',
+    'oracle-manipulation', 'regulatory-risk', 'flash-loan-attack', 'slippage-alert',
+    'rug-pull-detector', 'mev-protection', 'whale-movement', 'correlation-risk',
+    'gas-optimization', 'depegging-risk', 'validator-risk', 'insurance-coverage'
+  ]
 
   // Robust focus management using useCallback for stable reference
   const maintainInputFocus = useCallback(() => {
@@ -195,14 +122,6 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
     }
   }, [isExpanded, maintainInputFocus])
 
-  // Initialize with dummy conversation when expanded
-  useEffect(() => {
-    if (isExpanded && messages.length === 0) {
-      // Remove dummy conversation initialization
-      // setMessages(dummyConversation)
-    }
-  }, [isExpanded])
-
   // Handle click outside to collapse
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -259,23 +178,38 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
     })
 
     try {
-      // First check for window event triggers in user message
-      processWindowEvents(messageText)
-      
       // Try to get response from API first
       const response = await sendMessageToDemai(messageText)
       
       let aiResponseText: string
       
       if (response.success && response.data) {
-        aiResponseText = response.data
-        // Also check API response for window triggers
-        processWindowEvents(aiResponseText)
+        console.log('✅ Got API response:', response)
+        const aiResponse = response.data
+        aiResponseText = aiResponse.text
+        
+        // Open window if specified in JSON response
+        if (aiResponse.windows && Array.isArray(aiResponse.windows)) {
+          // First close all currently open windows
+          console.log('Closing all current windows before opening new ones')
+          openWindow('close-all')
+          
+          // Then open new windows with a small delay to ensure close happens first
+          const windowsToOpen = aiResponse.windows
+          setTimeout(() => {
+            windowsToOpen.forEach(windowId => {
+              if (AVAILABLE_WINDOW_IDS.includes(windowId)) {
+                console.log(`Opening window from API response: ${windowId}`)
+                openWindow(windowId)
+              }
+            })
+          }, 100)
+        }
+        
         console.log('✅ Got API response:', aiResponseText)
       } else {
-        console.log('❌ API failed, using fallback:', response.error)
-        // Fallback to enhanced local AI responses with window events
-        aiResponseText = generateAIResponse(messageText)
+        console.log('❌ API failed:', response.error)
+        aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'
       }
 
       const aiMessage: ChatMessage = {
@@ -287,12 +221,11 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
 
       setMessages((prev) => [...prev, aiMessage])
     } catch (error) {
-      console.log('❌ API error, using fallback:', error)
-      // Enhanced error message with suggestion
+      console.log('❌ API error:', error)
       const errorMessage: ChatMessage = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: 'Connected to local fallback mode! The API connection had an issue, but I can still help.\n\n💡 Try these commands:\n• "show portfolio"\n• "high yield"\n• "analyze risks"\n\nThese will trigger window events! 🚀',
+        text: 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.',
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMessage])
@@ -336,18 +269,36 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
     // Process the message same as before
     setTimeout(async () => {
       try {
-        processWindowEvents(messageText)
         const response = await sendMessageToDemai(messageText)
         
         let aiResponseText: string
         
         if (response.success && response.data) {
-          aiResponseText = response.data
-          processWindowEvents(aiResponseText)
+          const aiResponse = response.data
+          aiResponseText = aiResponse.text
+          
+          // Open window if specified in JSON response
+          if (aiResponse.windows && Array.isArray(aiResponse.windows)) {
+            // First close all currently open windows
+            console.log('Closing all current windows before opening new ones')
+            openWindow('close-all')
+            
+            // Then open new windows with a small delay to ensure close happens first
+            const windowsToOpen = aiResponse.windows
+            setTimeout(() => {
+              windowsToOpen.forEach(windowId => {
+                if (AVAILABLE_WINDOW_IDS.includes(windowId)) {
+                  console.log(`Opening window from API response: ${windowId}`)
+                  openWindow(windowId)
+                }
+              })
+            }, 100)
+          }
+          
           console.log('✅ Got API response:', aiResponseText)
         } else {
-          console.log('❌ API failed, using fallback:', response.error)
-          aiResponseText = generateAIResponse(messageText)
+          console.log('❌ API failed:', response.error)
+          aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'
         }
 
         const aiMessage: ChatMessage = {
@@ -359,11 +310,11 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
 
         setMessages((prev) => [...prev, aiMessage])
       } catch (error) {
-        console.log('❌ API error, using fallback:', error)
+        console.log('❌ API error:', error)
         const errorMessage: ChatMessage = {
           id: Date.now() + 1,
           sender: 'ai',
-          text: 'Connected to local fallback mode! The API connection had an issue, but I can still help.\n\n💡 Try these commands:\n• "show portfolio"\n• "high yield"\n• "analyze risks"\n\nThese will trigger window events! 🚀',
+          text: 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.',
           timestamp: new Date(),
         }
         setMessages((prev) => [...prev, errorMessage])
@@ -450,7 +401,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
 
                   {/* Status text */}
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-white/90">demAI</span>
+                    <span className="text-sm font-medium text-white/90">demai</span>
                     <span className="font-mono text-xs text-green-400">● online</span>
                   </div>
                 </div>
@@ -477,12 +428,12 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
             </div>
 
             {/* Content Area */}
-            <div className="chat-scrollbar flex-1 space-y-2 overflow-y-auto p-6 font-mono">
+            <div className="chat-scrollbar flex-1 space-y-2 overflow-y-auto px-6 pb-6 font-mono">
               {messages.length === 0 ? (
                 /* Terminal-like welcome screen */
-                <div className="mt-8 space-y-4 font-mono">
+                <div className="mt-4 space-y-4 font-mono">
                   <div className="text-sm text-green-400">
-                    <div className="mb-2">$ demAI --init</div>
+                    <div className="mb-2">$ demai --init</div>
                     <div className="ml-4 text-white/60">Initializing DeFi yield optimization assistant...</div>
                     <div className="ml-4 text-white/60">Loading market data...</div>
                     <div className="ml-4 text-white/60">Ready for queries.</div>
@@ -499,18 +450,18 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
                 </div>
               ) : (
                 /* Terminal-like chat messages */
-                <div className="space-y-1 py-4 font-mono text-sm">
+                <div className="space-y-1 pt-4 font-mono text-sm">
                   {messages.map((message) => (
                     <div key={message.id} className="group">
                       {message.sender === 'user' ? (
                         <div className="flex items-start space-x-2">
-                          <span className="flex-shrink-0 text-green-400">user@demAI:~$</span>
+                          <span className="flex-shrink-0 text-green-400">user@demai:~$</span>
                           <div className="flex-1 break-words whitespace-pre-wrap text-white/90">{message.text}</div>
                         </div>
                       ) : (
                         <div className="mt-2 mb-4">
                           <div className="mb-1 flex items-center space-x-2">
-                            <span className="flex-shrink-0 text-blue-400">demAI@assistant:</span>
+                            <span className="flex-shrink-0 text-blue-400">demai@assistant:</span>
                             <span className="text-xs text-white/40">
                               {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
@@ -523,7 +474,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
 
                   {isLoading && (
                     <div className="mt-2 flex items-center space-x-2">
-                      <span className="text-blue-400">demAI@assistant:</span>
+                      <span className="text-blue-400">demai@assistant:</span>
                       <div className="flex items-center space-x-1">
                         <div className="h-1 w-1 animate-bounce rounded-full bg-white/60" />
                         <div className="h-1 w-1 animate-bounce rounded-full bg-white/60" style={{ animationDelay: '0.1s' }} />
@@ -579,7 +530,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
                     setShouldMaintainFocus(true)
                   }}
                   autoFocus={isExpanded}
-                  placeholder={messages.length === 0 ? "Start here optimizing your yield optimization" : ""}
+                  placeholder={messages.length === 0 ? "start here optimizing your yield" : ""}
                   className="siri-glow-subtle flex-1 bg-transparent text-base font-medium text-white placeholder-white/50 focus:outline-none"
                   disabled={isLoading}
                 />

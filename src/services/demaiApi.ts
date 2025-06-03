@@ -12,7 +12,7 @@ interface AuthData {
 
 interface ApiResponse {
   success: boolean
-  data?: string
+  data?: { text: string; windows?: string[] }
   error?: string
 }
 
@@ -81,9 +81,25 @@ export const sendMessageToDemai = async (message: string): Promise<ApiResponse> 
         }
       }
 
-      return {
-        success: true,
-        data: data.response,
+      // Parse the JSON response from the backend
+      try {
+        const aiResponse = JSON.parse(data.response)
+        return {
+          success: true,
+          data: {
+            text: aiResponse.text || data.response,
+            windows: aiResponse.windows
+          }
+        }
+      } catch (parseError) {
+        // If not valid JSON, treat as plain text
+        return {
+          success: true,
+          data: {
+            text: data.response,
+            windows: undefined
+          }
+        }
       }
     } catch (fetchError) {
       // Handle network-related errors specifically

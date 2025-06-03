@@ -31,14 +31,15 @@ const getStoredAuthData = (): AuthData | null => {
 // Function to send a message to the AI chat endpoint
 export const sendMessageToDemai = async (message: string): Promise<ApiResponse> => {
   try {
+    // TODO: Re-enable authentication for production
     // Get authentication data
-    const authData = getStoredAuthData()
-    if (!authData) {
-      return {
-        success: false,
-        error: 'No authentication data found. Please connect your wallet and sign the message.',
-      }
-    }
+    // const authData = getStoredAuthData()
+    // if (!authData) {
+    //   return {
+    //     success: false,
+    //     error: 'No authentication data found. Please connect your wallet and sign the message.',
+    //   }
+    // }
 
     // Construct the full endpoint URL
     const endpointUrl = `${API_BASE_URL}/chat/`
@@ -51,9 +52,9 @@ export const sendMessageToDemai = async (message: string): Promise<ApiResponse> 
         },
         body: JSON.stringify({
           message,
-          wallet_address: authData.address,
-          signature: authData.signature,
-          auth_message: authData.message,
+          wallet_address: 'dev-address', // Dummy address for development
+          signature: 'dev-signature', // Dummy signature for development
+          auth_message: 'dev-message', // Dummy auth message for development
         }),
       })
 

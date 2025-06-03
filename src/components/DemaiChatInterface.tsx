@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { sendMessageToDemai } from '../services/demaiApi'
+import { useOpenWindow } from '../hooks/useEvents'
 
 interface ChatMessage {
   id: number
@@ -18,48 +19,187 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
   const [isExpanded, setIsExpanded] = useState(false)
   const [isCollapsing, setIsCollapsing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [shouldMaintainFocus, setShouldMaintainFocus] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isSubmittingRef = useRef(false)
+  
+  // Add openWindow hook for triggering window events
+  const openWindow = useOpenWindow()
 
-  // Dummy conversation about yield optimization
-  const dummyConversation: ChatMessage[] = [
-    {
-      id: 1,
-      sender: 'ai',
-      text: "Hello! I'm your DeFi yield optimization assistant. I can help you analyze your portfolio and find the best yield farming opportunities.",
-      timestamp: new Date(Date.now() - 300000), // 5 minutes ago
-    },
-    {
-      id: 2,
-      sender: 'user',
-      text: "What's the current best yield for stablecoins?",
-      timestamp: new Date(Date.now() - 240000), // 4 minutes ago
-    },
-    {
-      id: 3,
-      sender: 'ai',
-      text: 'Currently, the top stablecoin yields are:\n\n• Aave USDC: 4.2% APY\n• Compound DAI: 3.8% APY\n• Curve 3Pool: 5.1% APY\n• Yearn USDT Vault: 6.3% APY\n\nYearn USDT Vault offers the highest yield but comes with smart contract risk. Would you like me to analyze the risk/reward ratio?',
-      timestamp: new Date(Date.now() - 180000), // 3 minutes ago
-    },
-    {
-      id: 4,
-      sender: 'user',
-      text: 'Yes, please analyze the Yearn vault risks',
-      timestamp: new Date(Date.now() - 120000), // 2 minutes ago
-    },
-    {
-      id: 5,
-      sender: 'ai',
-      text: 'Yearn USDT Vault Analysis:\n\n🔒 SECURITY:\n• Audited by Trail of Bits & ConsenSys\n• $2.1B TVL indicates strong trust\n• 2+ years operational history\n\n⚠️ RISKS:\n• Smart contract risk (medium)\n• Impermanent loss potential\n• Strategy complexity risk\n\n📊 RECOMMENDATION:\n• Suitable for 10-30% of stablecoin allocation\n• Consider diversifying across multiple protocols\n• Monitor vault strategy changes\n\nWould you like me to suggest a diversified yield strategy?',
-      timestamp: new Date(Date.now() - 60000), // 1 minute ago
-    },
-  ]
+  // Remove dummy conversation - start with clean chat
+  // const dummyConversation: ChatMessage[] = [...]
+
+  // Function to detect and trigger window events from AI responses
+  const processWindowEvents = (message: string) => {
+    // Define trigger patterns and their corresponding window IDs
+    const windowTriggers = [
+      { pattern: /show portfolio|portfolio analysis|view portfolio/i, windowId: 'portfolio' },
+      { pattern: /high yield|best yield|analyze high yield/i, windowId: 'high-yield' },
+      { pattern: /show yearn|yearn vault|yearn analysis/i, windowId: 'yearn-vault' },
+      { pattern: /risk analysis|show risks|analyze risks/i, windowId: 'risk-analysis' },
+      { pattern: /compound eth|show compound/i, windowId: 'compound-eth' },
+      { pattern: /curve pool|show curve|curve 3pool/i, windowId: 'curve-3pool' },
+      { pattern: /uniswap|show uniswap|uniswap v4/i, windowId: 'uniswap-v4' },
+      { pattern: /ai strategy|show strategy|strategy analysis/i, windowId: 'ai-strategy' },
+      { pattern: /smart contract|contract risk/i, windowId: 'smart-contract-risk' },
+      { pattern: /liquidation|liquidation alert/i, windowId: 'liquidation-alert' },
+      { pattern: /staking rewards|show staking/i, windowId: 'staking-rewards' },
+      { pattern: /balancer|show balancer/i, windowId: 'balancer-pool' },
+      { pattern: /convex|show convex/i, windowId: 'convex-crv' },
+      { pattern: /alerts|show alerts/i, windowId: 'alerts' },
+    ]
+
+    // Check for trigger patterns and emit events
+    windowTriggers.forEach(({ pattern, windowId }) => {
+      if (pattern.test(message)) {
+        console.log(`Chat message triggered window event: ${windowId}`)
+        openWindow(windowId)
+      }
+    })
+  }
+
+  // Enhanced AI response generator with window event triggers
+  const generateAIResponse = (userMessage: string): string => {
+    const lowerMessage = userMessage.toLowerCase()
+    
+    // Check for window trigger commands first
+    if (lowerMessage.includes('show portfolio') || lowerMessage.includes('portfolio')) {
+      openWindow('portfolio')
+      return 'Opening your portfolio analysis window...\n\n📊 Your current portfolio:\n• Total Value: $24,847.32\n• Active Strategies: 3\n• 24h Change: +5.2%\n\n🚀 Window Event: portfolio'
+    }
+    
+    if (lowerMessage.includes('high yield') || lowerMessage.includes('best yield')) {
+      openWindow('high-yield')
+      return 'Analyzing current high yield opportunities...\n\n🎯 Top Opportunities:\n• Yearn USDT: 6.3% APY\n• Curve 3Pool: 5.1% APY\n• Aave USDC: 4.2% APY\n• Compound DAI: 3.8% APY\n\n🚀 Window Event: high-yield'
+    }
+    
+    if (lowerMessage.includes('yearn') || lowerMessage.includes('vault')) {
+      openWindow('yearn-vault')
+      return 'Opening Yearn Vault detailed analysis...\n\n🏛️ Yearn USDT Vault:\n• Current APY: 6.3%\n• TVL: $2.1B\n• Risk Level: Medium\n• Strategy: Auto-compounding\n\n🚀 Window Event: yearn-vault'
+    }
+    
+    if (lowerMessage.includes('risk') || lowerMessage.includes('analyze risk')) {
+      openWindow('risk-analysis')
+      return 'Performing comprehensive risk analysis...\n\n⚠️ Portfolio Risk Assessment:\n• Overall Risk: Medium\n• Liquidation Risk: Low\n• Smart Contract Risk: Medium\n• Market Risk: High\n\n🚀 Window Event: risk-analysis'
+    }
+    
+    if (lowerMessage.includes('compound')) {
+      openWindow('compound-eth')
+      return 'Analyzing Compound ETH position...\n\n🏗️ Compound ETH:\n• Current APY: 3.8%\n• Your Position: $8,750\n• Collateral Ratio: 150%\n• Health Factor: 2.5\n\n🚀 Window Event: compound-eth'
+    }
+    
+    if (lowerMessage.includes('curve')) {
+      openWindow('curve-3pool')
+      return 'Opening Curve 3Pool analysis...\n\n🌊 Curve 3Pool:\n• Current APY: 5.1%\n• Pool TVL: $1.2B\n• Your LP Position: $15,200\n• Impermanent Loss: Minimal\n\n🚀 Window Event: curve-3pool'
+    }
+    
+    if (lowerMessage.includes('strategy') || lowerMessage.includes('ai strategy')) {
+      openWindow('ai-strategy')
+      return 'Generating AI-powered yield strategy...\n\n🤖 Recommended Strategy:\n• 40% Stable Yields (Aave/Compound)\n• 35% LP Positions (Curve/Uniswap)\n• 25% High-Risk/High-Reward (Yearn)\n\nExpected APY: 8.2%\n\n🚀 Window Event: ai-strategy'
+    }
+    
+    // Default responses based on keywords
+    if (lowerMessage.includes('yield') || lowerMessage.includes('apy')) {
+      return 'Current yield opportunities:\n\n🔥 Hot Picks:\n• Yearn USDT Vault: 6.3% APY\n• Curve 3Pool: 5.1% APY\n• Aave USDC: 4.2% APY\n• Compound DAI: 3.8% APY\n\nTry asking "show high yield" to open detailed analysis!'
+    }
+    
+    if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+      return 'Hello! 👋 I\'m demAI, your DeFi yield optimization assistant.\n\n🔧 What I can help with:\n• Portfolio analysis\n• Yield optimization\n• Risk assessment\n• Strategy recommendations\n\n💡 Try commands like:\n• "show portfolio"\n• "analyze high yield"\n• "show risks"\n• "ai strategy"'
+    }
+    
+    // Generic response
+    return 'I understand you\'re asking about DeFi strategies. Let me help you optimize your yields!\n\n💡 Available commands:\n• "show portfolio" - View your positions\n• "high yield" - Find best opportunities\n• "analyze risks" - Risk assessment\n• "ai strategy" - Get AI recommendations\n\nEach command will open a detailed analysis window! 🚀'
+  }
+
+  // Robust focus management using useCallback for stable reference
+  const maintainInputFocus = useCallback(() => {
+    if (!inputRef.current || !isExpanded || isLoading) return false
+    
+    try {
+      const activeElement = document.activeElement
+      const inputElement = inputRef.current
+      
+      // Only focus if not already focused and should maintain focus
+      if (activeElement !== inputElement && shouldMaintainFocus) {
+        inputElement.focus()
+        
+        // Set cursor to end of input
+        const length = inputElement.value.length
+        inputElement.setSelectionRange(length, length)
+        return true
+      }
+      return false
+    } catch (error) {
+      console.debug('Focus attempt failed:', error)
+      return false
+    }
+  }, [isExpanded, isLoading, shouldMaintainFocus])
+
+  // Focus guard effect - continuously monitors and maintains focus
+  useEffect(() => {
+    if (!isExpanded || !shouldMaintainFocus) return
+
+    const focusGuard = () => {
+      if (maintainInputFocus()) {
+        console.debug('Focus restored by guard')
+      }
+    }
+
+    // Set up focus monitoring
+    const focusInterval = setInterval(focusGuard, 100)
+    
+    // Also listen for focus/blur events on the document
+    const handleFocusChange = () => {
+      if (shouldMaintainFocus) {
+        // Use requestAnimationFrame to ensure this runs after any other focus changes
+        requestAnimationFrame(focusGuard)
+      }
+    }
+
+    document.addEventListener('focusin', handleFocusChange)
+    document.addEventListener('focusout', handleFocusChange)
+
+    return () => {
+      clearInterval(focusInterval)
+      document.removeEventListener('focusin', handleFocusChange)
+      document.removeEventListener('focusout', handleFocusChange)
+    }
+  }, [isExpanded, shouldMaintainFocus, maintainInputFocus])
+
+  // Initialize focus when expanded
+  useEffect(() => {
+    if (isExpanded) {
+      setShouldMaintainFocus(true)
+      // Clear any existing timeout
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current)
+      }
+      // Initial focus with delay to ensure DOM is ready
+      focusTimeoutRef.current = setTimeout(() => {
+        maintainInputFocus()
+      }, 50)
+    } else {
+      setShouldMaintainFocus(false)
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current)
+      }
+    }
+
+    return () => {
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current)
+      }
+    }
+  }, [isExpanded, maintainInputFocus])
 
   // Initialize with dummy conversation when expanded
   useEffect(() => {
     if (isExpanded && messages.length === 0) {
-      setMessages(dummyConversation)
+      // Remove dummy conversation initialization
+      // setMessages(dummyConversation)
     }
   }, [isExpanded])
 
@@ -85,17 +225,18 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
     scrollToBottom()
   }, [messages])
 
-  const handleSuggestionClick = (suggestion: (typeof dummyConversation)[0]) => {
+  const handleSuggestionClick = (suggestion: ChatMessage) => {
     setInputValue(suggestion.text)
-    if (inputRef.current) {
-      inputRef.current.focus()
-    }
+    setTimeout(maintainInputFocus, 0)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inputValue.trim() || isLoading) return
 
+    // Set submitting flag to prevent focus interruption
+    isSubmittingRef.current = true
+    
     const userMessage: ChatMessage = {
       id: Date.now(),
       sender: 'user',
@@ -104,42 +245,157 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
     }
 
     setMessages((prev) => [...prev, userMessage])
+    const messageText = inputValue.trim()
     setInputValue('')
     setIsLoading(true)
 
+    // Immediately restore focus after clearing input - don't wait for API response
+    isSubmittingRef.current = false
+    setShouldMaintainFocus(true)
+    
+    // Force immediate focus restoration
+    requestAnimationFrame(() => {
+      maintainInputFocus()
+    })
+
     try {
-      const response = await sendMessageToDemai(userMessage.text)
+      // First check for window event triggers in user message
+      processWindowEvents(messageText)
+      
+      // Try to get response from API first
+      const response = await sendMessageToDemai(messageText)
+      
+      let aiResponseText: string
+      
+      if (response.success && response.data) {
+        aiResponseText = response.data
+        // Also check API response for window triggers
+        processWindowEvents(aiResponseText)
+        console.log('✅ Got API response:', aiResponseText)
+      } else {
+        console.log('❌ API failed, using fallback:', response.error)
+        // Fallback to enhanced local AI responses with window events
+        aiResponseText = generateAIResponse(messageText)
+      }
 
       const aiMessage: ChatMessage = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: response.success ? response.data || 'No response received' : `Error: ${response.error}`,
+        text: aiResponseText,
         timestamp: new Date(),
       }
 
       setMessages((prev) => [...prev, aiMessage])
     } catch (error) {
+      console.log('❌ API error, using fallback:', error)
+      // Enhanced error message with suggestion
       const errorMessage: ChatMessage = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: 'Sorry, I encountered an error. Please try again.',
+        text: 'Connected to local fallback mode! The API connection had an issue, but I can still help.\n\n💡 Try these commands:\n• "show portfolio"\n• "high yield"\n• "analyze risks"\n\nThese will trigger window events! 🚀',
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+      // Ensure focus is still maintained after response
+      if (!shouldMaintainFocus) {
+        setShouldMaintainFocus(true)
+        requestAnimationFrame(() => {
+          maintainInputFocus()
+        })
+      }
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  // Handle message input from chatscope component
+  const handleChatScopeSubmit = (innerText: string, textContent: string) => {
+    if (!textContent.trim() || isLoading) return
+
+    isSubmittingRef.current = true
+    
+    const userMessage: ChatMessage = {
+      id: Date.now(),
+      sender: 'user',
+      text: textContent.trim(),
+      timestamp: new Date(),
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    const messageText = textContent.trim()
+    setIsLoading(true)
+
+    // Immediately restore focus after message is sent
+    isSubmittingRef.current = false
+    setShouldMaintainFocus(true)
+    
+    requestAnimationFrame(() => {
+      maintainInputFocus()
+    })
+
+    // Process the message same as before
+    setTimeout(async () => {
+      try {
+        processWindowEvents(messageText)
+        const response = await sendMessageToDemai(messageText)
+        
+        let aiResponseText: string
+        
+        if (response.success && response.data) {
+          aiResponseText = response.data
+          processWindowEvents(aiResponseText)
+          console.log('✅ Got API response:', aiResponseText)
+        } else {
+          console.log('❌ API failed, using fallback:', response.error)
+          aiResponseText = generateAIResponse(messageText)
+        }
+
+        const aiMessage: ChatMessage = {
+          id: Date.now() + 1,
+          sender: 'ai',
+          text: aiResponseText,
+          timestamp: new Date(),
+        }
+
+        setMessages((prev) => [...prev, aiMessage])
+      } catch (error) {
+        console.log('❌ API error, using fallback:', error)
+        const errorMessage: ChatMessage = {
+          id: Date.now() + 1,
+          sender: 'ai',
+          text: 'Connected to local fallback mode! The API connection had an issue, but I can still help.\n\n💡 Try these commands:\n• "show portfolio"\n• "high yield"\n• "analyze risks"\n\nThese will trigger window events! 🚀',
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, errorMessage])
+      } finally {
+        setIsLoading(false)
+        // Ensure focus is still maintained after response
+        if (!shouldMaintainFocus) {
+          setShouldMaintainFocus(true)
+          requestAnimationFrame(() => {
+            maintainInputFocus()
+          })
+        }
+      }
+    }, 0)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
+      e.stopPropagation()
+      
+      // Don't interrupt if already submitting
+      if (isSubmittingRef.current) return
+      
       handleSubmit(e)
     }
   }
 
   const handleCollapse = () => {
+    setShouldMaintainFocus(false)
     setIsCollapsing(true)
+    
     // Wait for animation to complete before actually collapsing
     setTimeout(() => {
       setIsExpanded(false)
@@ -151,6 +407,15 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
   const handleInputClick = () => {
     if (!isExpanded) {
       setIsExpanded(true)
+    }
+    // Focus will be handled by the useEffect when isExpanded changes
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value)
+    // Ensure focus is maintained during typing
+    if (!shouldMaintainFocus) {
+      setShouldMaintainFocus(true)
     }
   }
 
@@ -299,10 +564,22 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
                   ref={inputRef}
                   type="text"
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
                   onClick={handleInputClick}
-                  placeholder="Start here optimizing your yield optimization"
+                  onBlur={(e) => {
+                    // Only prevent automatic focus restoration if user is clicking outside the chat
+                    // The focus guard will handle restoration if needed
+                    if (!chatContainerRef.current?.contains(e.relatedTarget as Node)) {
+                      setShouldMaintainFocus(false)
+                    }
+                  }}
+                  onFocus={() => {
+                    // Re-enable focus maintenance when user manually focuses
+                    setShouldMaintainFocus(true)
+                  }}
+                  autoFocus={isExpanded}
+                  placeholder={messages.length === 0 ? "Start here optimizing your yield optimization" : ""}
                   className="siri-glow-subtle flex-1 bg-transparent text-base font-medium text-white placeholder-white/50 focus:outline-none"
                   disabled={isLoading}
                 />
@@ -311,6 +588,14 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
               <button
                 type="submit"
                 disabled={!inputValue.trim() || isLoading}
+                onMouseDown={(e) => {
+                  // Prevent button click from stealing focus
+                  e.preventDefault()
+                }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleSubmit(e)
+                }}
                 className="flex items-center justify-center rounded-full border border-white/20 bg-gradient-to-r from-[#2563eb]/90 to-[#60a5fa]/90 p-1.5 text-white shadow-lg shadow-blue-500/40 backdrop-blur-xl transition-all duration-200 hover:from-[#2563eb] hover:to-[#60a5fa] hover:shadow-blue-500/60 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

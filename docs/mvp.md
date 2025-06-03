@@ -1,4 +1,5 @@
-- card contents from json api
+- connect the chat
+- prompt with get prompt
 - systerm for the chat to surface open/close windows
 - update cards to show current status
 - progress items to see things being executing

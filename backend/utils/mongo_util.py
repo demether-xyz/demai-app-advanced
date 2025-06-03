@@ -1,6 +1,7 @@
 import os
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -46,6 +47,26 @@ class MongoUtil:
         except Exception as e:
             print(f"Error fetching chat history: {e}")
             return []
+
+    def save_message(self, chat_id: str, sender: str, content: str):
+        """Save a message to the chat history"""
+        if self.db is None:
+            print("MongoDB connection not established.")
+            return False
+        
+        try:
+            message_doc = {
+                "chat_id": chat_id,
+                "sender": sender,
+                "content": content,
+                "timestamp": datetime.utcnow()
+            }
+            result = self.db.messages.insert_one(message_doc)
+            print(f"Message saved with ID: {result.inserted_id}")
+            return True
+        except Exception as e:
+            print(f"Error saving message: {e}")
+            return False
 
 # Example usage (optional - can remove later)
 # if __name__ == "__main__":

@@ -6,11 +6,11 @@ authors = [
     {name = "jdorado",email = "juancamilo.dorado@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "fastapi (>=0.115.12,<0.116.0)",
     "uvicorn[standard] (>=0.34.2,<0.35.0)",
-    "crewai (>=0.119.0,<0.120.0)",
+    "langchain (>=0.3.0,<0.4.0)",
     "pydantic (>=2.11.4,<3.0.0)",
     "langchain-openai (>=0.3.16,<0.4.0)",
     "pymongo (>=4.12.1,<5.0.0)",

@@ -46,128 +46,6 @@ import AutomationIndicator from '@/components/AutomationIndicator'
 import { useSurfaceCard } from '@/hooks/useEvents'
 import { useOpenWindow } from '@/hooks/useEvents'
 
-// Dummy Card Surfacer Component for testing - Now fully generic
-const CardSurfacer: React.FC = () => {
-  const openWindow = useOpenWindow()
-
-  // This would normally come from your backend API or context
-  // Just demonstrating that it works with any card IDs
-  const availableCardIds = [
-    'high-yield',
-    'compound-eth',
-    'curve-3pool',
-    'uniswap-v4',
-    'portfolio',
-    'risk-analysis',
-    'alerts',
-    'ai-strategy',
-    'smart-contract-risk',
-    'liquidation-alert',
-    // These would be dynamic from backend:
-    'staking-rewards',
-    'yearn-vault',
-    'balancer-pool',
-    'convex-crv',
-  ]
-
-  const handleOpenWindow = (cardId: string) => {
-    console.log(`Opening window via hierarchical event: app.openwindow.${cardId}`)
-    openWindow(cardId)
-  }
-
-  return (
-    <div className="absolute top-4 right-4 z-50 max-w-sm rounded-lg border border-blue-500/30 bg-black/95 p-4 shadow-2xl backdrop-blur-sm">
-      <h3 className="mb-2 flex items-center text-sm font-medium text-blue-400">
-        <div className="mr-2 h-2 w-2 animate-pulse rounded-full bg-blue-400"></div>
-        Hierarchical Event System
-      </h3>
-      <p className="mb-3 text-xs text-gray-400">🚀 Events: app.openwindow.{'{windowId}'} - Works with any card!</p>
-      <div className="grid max-h-64 grid-cols-2 gap-2 overflow-y-auto">
-        {availableCardIds.map((cardId) => (
-          <button
-            key={cardId}
-            onClick={() => handleOpenWindow(cardId)}
-            className="rounded bg-gradient-to-r from-blue-600 to-blue-700 px-2 py-2 text-xs text-white transition-all duration-200 hover:scale-105 hover:from-blue-500 hover:to-blue-600 hover:shadow-lg hover:shadow-blue-500/25"
-          >
-            {cardId
-              .split('-')
-              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(' ')}
-          </button>
-        ))}
-      </div>
-      <div className="mt-3 border-t border-blue-500/20 pt-3 text-xs text-blue-300/70">
-        ✨ Hierarchical Events • app.openwindow.{'{id}'} • No infinite loops
-      </div>
-    </div>
-  )
-}
-
-// Demo component showing how other parts of the app would surface cards
-const OtherAppPartDemo: React.FC = () => {
-  const openWindow = useOpenWindow()
-
-  const handleScenarioAction = (cardId: string, scenarioTitle: string) => {
-    console.log(`${scenarioTitle} triggered hierarchical event: app.openwindow.${cardId}`)
-    openWindow(cardId)
-  }
-
-  // Simulate different app sections that might surface cards
-  const demoScenarios = [
-    {
-      title: '🤖 AI Chat Response',
-      description: 'When AI mentions a specific yield opportunity',
-      cardId: 'high-yield',
-      action: 'Surface High Yield Card',
-    },
-    {
-      title: '⚠️ Risk Alert',
-      description: 'When system detects high risk condition',
-      cardId: 'risk-analysis',
-      action: 'Show Risk Analysis',
-    },
-    {
-      title: '💡 AI Recommendation',
-      description: 'When AI suggests a strategy',
-      cardId: 'ai-strategy',
-      action: 'Display Strategy',
-    },
-    {
-      title: '📊 Portfolio Update',
-      description: 'When portfolio data changes',
-      cardId: 'portfolio',
-      action: 'Open Portfolio View',
-    },
-  ]
-
-  return (
-    <div className="absolute bottom-4 left-4 z-50 max-w-xs rounded-lg border border-green-500/30 bg-black/95 p-4 shadow-2xl backdrop-blur-sm">
-      <h3 className="mb-2 flex items-center text-sm font-medium text-green-400">
-        <div className="mr-2 h-2 w-2 animate-pulse rounded-full bg-green-400"></div>
-        App Integration Examples
-      </h3>
-      <p className="mb-3 text-xs text-gray-400">Examples of how different app parts surface cards</p>
-      <div className="space-y-2">
-        {demoScenarios.map((scenario, index) => (
-          <div key={index} className="rounded-lg border border-slate-700/30 bg-slate-800/50 p-3">
-            <div className="mb-1 text-xs font-medium text-slate-200">{scenario.title}</div>
-            <div className="mb-2 text-xs text-slate-400">{scenario.description}</div>
-            <button
-              onClick={() => handleScenarioAction(scenario.cardId, scenario.title)}
-              className="rounded bg-gradient-to-r from-green-600 to-green-700 px-2 py-1 text-xs text-white transition-all duration-200 hover:scale-105 hover:from-green-500 hover:to-green-600"
-            >
-              {scenario.action}
-            </button>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 border-t border-green-500/20 pt-2 text-xs text-green-300/70">
-        🔗 Any component can surface any card using surfaceCard(id)
-      </div>
-    </div>
-  )
-}
-
 const DemaiPage = () => {
   const { isConnected, address } = useAccount()
   const [hasValidSignature, setHasValidSignature] = useState(false)
@@ -185,21 +63,31 @@ const DemaiPage = () => {
       return
     }
 
-    const storedSignature = localStorage.getItem('demai_auth_signature')
-    const storedMessage = localStorage.getItem('demai_auth_message')
+    // Updated to match the storage format used by DemaiConnectModal
+    const storedData = localStorage.getItem('demai_auth_data')
+    if (!storedData) {
+      setHasValidSignature(false)
+      return
+    }
 
-    // If we have both signature and message, and they match our expected message
-    if (storedSignature && storedMessage === DEMAI_AUTH_MESSAGE) {
-      setHasValidSignature(true)
-    } else {
+    try {
+      const authData = JSON.parse(storedData)
+      // Check if we have valid auth data for the current address
+      const isValid = !!(
+        authData &&
+        authData.signature &&
+        authData.message === DEMAI_AUTH_MESSAGE &&
+        authData.address.toLowerCase() === address.toLowerCase()
+      )
+      setHasValidSignature(isValid)
+    } catch {
       setHasValidSignature(false)
     }
   }, [address, mounted])
 
-  // TODO: Re-enable authentication system
-  // Show modal if either not connected or no valid signature
-  // const shouldShowModal = !isConnected || !hasValidSignature;
-  const shouldShowModal = false // Temporarily disabled for UI development
+  // TODO: Re-enable authentication for production
+  // const shouldShowModal = !isConnected || !hasValidSignature
+  const shouldShowModal = false // Temporarily disabled for development
 
   // Don't render anything until mounted
   if (!mounted) {
@@ -401,9 +289,6 @@ const DemaiPage = () => {
             <div className="absolute inset-0">
               <WireframeOverlay />
             </div>
-
-            {/* Card Surfacer Test Component */}
-            <CardSurfacer />
           </div>
 
           {/* Floating Chat Interface - Superimposed */}
@@ -414,7 +299,6 @@ const DemaiPage = () => {
           </div>
         </div>
       )}
-      <OtherAppPartDemo />
     </>
   )
 }

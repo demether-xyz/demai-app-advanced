@@ -1,3 +1,0 @@
-"""
-Crew package initialization
-""" 

@@ -47,6 +47,7 @@ import VaultModal from '@/components/VaultModal'
 import { useSurfaceCard, useEvent, useEventEmitter } from '@/hooks/useEvents'
 import { useOpenWindow } from '@/hooks/useEvents'
 import { getPortfolioData } from '@/services/demaiApi'
+import { useVaultVerification } from '@/hooks/useVaultVerification'
 
 interface PortfolioData {
   total_value_usd: number
@@ -68,6 +69,9 @@ const DemaiPage = () => {
     isLoading: true,
     error: null
   })
+  
+  // Get vault verification data
+  const { vaultAddress, hasVault, isLoading: isVaultLoading } = useVaultVerification(isConnected && hasValidSignature)
   
   // Listen for vault modal events
   const vaultOpenEvent = useEvent('vault.open')
@@ -117,17 +121,17 @@ const DemaiPage = () => {
   // Show main app when connected and authenticated
   const shouldShowMainApp = isConnected && hasValidSignature
 
-  // Fetch portfolio data when wallet is connected and authenticated
+  // Fetch portfolio data when vault is available
   useEffect(() => {
     const fetchPortfolio = async () => {
-      if (!shouldShowMainApp || !address) {
+      if (!shouldShowMainApp || !hasVault || !vaultAddress || isVaultLoading) {
         return
       }
 
       setPortfolioData((prev: PortfolioData) => ({ ...prev, isLoading: true, error: null }))
 
       try {
-        const result = await getPortfolioData(address)
+        const result = await getPortfolioData(vaultAddress)
         if (result.success && result.data) {
           setPortfolioData({
             total_value_usd: result.data.total_value_usd,
@@ -153,7 +157,7 @@ const DemaiPage = () => {
     }
 
     fetchPortfolio()
-  }, [shouldShowMainApp, address])
+  }, [shouldShowMainApp, hasVault, vaultAddress, isVaultLoading])
 
   // Format currency values
   const formatCurrency = (value: number) => {
@@ -210,30 +214,36 @@ const DemaiPage = () => {
                 {/* Portfolio Value */}
                 <div className="mb-4">
                   <div className="mb-2 text-5xl font-bold text-white">
-                    {portfolioData.isLoading 
+                    {portfolioData.isLoading || isVaultLoading
                       ? 'Loading...' 
-                      : portfolioData.error 
+                      : !hasVault
                         ? '$0.00'
-                        : formatCurrency(portfolioData.total_value_usd)
+                        : portfolioData.error 
+                          ? '$0.00'
+                          : formatCurrency(portfolioData.total_value_usd)
                     }
                   </div>
                   <div className="mb-1 text-lg font-medium text-white/70">
-                    {portfolioData.isLoading 
+                    {portfolioData.isLoading || isVaultLoading
                       ? 'Fetching portfolio data...'
-                      : portfolioData.error
-                        ? 'Unable to load portfolio'
-                        : `Across ${portfolioData.chains_count} chains`
+                      : !hasVault
+                        ? 'No vault deployed yet'
+                        : portfolioData.error
+                          ? 'Unable to load portfolio'
+                          : `Across ${portfolioData.chains_count} chains`
                     }
                   </div>
                   <div className="flex items-center text-sm font-medium text-green-400">
                     <svg className="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
-                    {portfolioData.isLoading 
+                    {portfolioData.isLoading || isVaultLoading
                       ? 'Loading...'
-                      : portfolioData.error
-                        ? 'Data unavailable'
-                        : `${portfolioData.tokens_count} active positions`
+                      : !hasVault
+                        ? 'Deploy a vault to start'
+                        : portfolioData.error
+                          ? 'Data unavailable'
+                          : `${portfolioData.tokens_count} active positions`
                     }
                   </div>
                 </div>

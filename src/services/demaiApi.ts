@@ -12,14 +12,14 @@ interface AuthData {
 
 interface ApiResponse {
   success: boolean
-  data?: { text: string; windows?: string[] }
+  message?: string
   error?: string
 }
 
 interface PortfolioResponse {
   success: boolean
   data?: {
-    wallet_address: string
+    vault_address: string
     total_value_usd: number
     holdings: Array<{
       symbol: string
@@ -35,16 +35,19 @@ interface PortfolioResponse {
   error?: string
 }
 
-// Function to get stored auth data
-const getStoredAuthData = (): AuthData | null => {
-  const storedData = localStorage.getItem('demai_auth_data')
-  if (!storedData) return null
-
+// Function to get stored authentication data from localStorage
+export const getStoredAuthData = (): AuthData | null => {
   try {
-    return JSON.parse(storedData)
+    const data = localStorage.getItem('demai_auth_data')
+    return data ? JSON.parse(data) : null
   } catch {
     return null
   }
+}
+
+// Function to store authentication data to localStorage
+export const storeAuthData = (authData: AuthData): void => {
+  localStorage.setItem('demai_auth_data', JSON.stringify(authData))
 }
 
 // Function to send a message to the AI chat endpoint
@@ -100,32 +103,16 @@ export const sendMessageToDemai = async (message: string): Promise<ApiResponse> 
         }
       }
 
-      // Parse the JSON response from the backend
-      try {
-        const aiResponse = JSON.parse(data.response)
-        return {
-          success: true,
-          data: {
-            text: aiResponse.text || data.response,
-            windows: aiResponse.windows
-          }
-        }
-      } catch (parseError) {
-        // If not valid JSON, treat as plain text
-        return {
-          success: true,
-          data: {
-            text: data.response,
-            windows: undefined
-          }
-        }
+      return {
+        success: true,
+        message: data.response,
       }
     } catch (fetchError) {
       // Handle network-related errors specifically
       if (fetchError instanceof TypeError && fetchError.message === 'Failed to fetch') {
         return {
           success: false,
-          error: 'Unable to connect to the AI service. Please check if the service is running and try again.',
+          error: 'Unable to connect to the Demai API. Please check if the service is running and try again.',
         }
       }
       return {
@@ -134,16 +121,16 @@ export const sendMessageToDemai = async (message: string): Promise<ApiResponse> 
       }
     }
   } catch (error) {
-    console.error('Error sending message to backend:', error)
+    console.error('Error sending message to Demai:', error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unexpected error occurred while sending your message.',
+      error: error instanceof Error ? error.message : 'An unexpected error occurred while sending the message.',
     }
   }
 }
 
 // Function to get portfolio data
-export const getPortfolioData = async (walletAddress: string): Promise<PortfolioResponse> => {
+export const getPortfolioData = async (vaultAddress: string): Promise<PortfolioResponse> => {
   try {
     // TODO: Re-enable authentication for production
     // Get authentication data
@@ -165,7 +152,7 @@ export const getPortfolioData = async (walletAddress: string): Promise<Portfolio
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          wallet_address: walletAddress,
+          vault_address: vaultAddress,
           signature: 'dev-signature', // Dummy signature for development
           auth_message: 'dev-message', // Dummy auth message for development
         }),

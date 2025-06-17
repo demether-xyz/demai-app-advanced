@@ -159,14 +159,26 @@ const DemaiPage = () => {
     fetchPortfolio()
   }, [shouldShowMainApp, hasVault, vaultAddress, isVaultLoading])
 
-  // Format currency values
+  // Format currency values with smart decimal places based on value size
   const formatCurrency = (value: number) => {
     if (value === 0) return '$0.00'
+    
+    // Determine decimal places based on value size
+    let decimals = 2
+    if (value < 1) {
+      decimals = 6  // Show 6 decimals for values less than $1
+    } else if (value < 10) {
+      decimals = 4  // Show 4 decimals for values less than $10
+    } else if (value < 1000) {
+      decimals = 3  // Show 3 decimals for values less than $1000
+    }
+    // Values >= $1000 keep 2 decimals (default)
+    
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(value)
   }
 

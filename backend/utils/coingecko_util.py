@@ -27,7 +27,7 @@ class CoinGeckoUtil:
         tokens_to_fetch = []
         
         # Check cache first
-        if self.mongo_util and self.mongo_util.db:
+        if self.mongo_util and self.mongo_util.db is not None:
             for token_id in token_ids:
                 cached_price = self._get_cached_price(token_id)
                 if cached_price:
@@ -43,7 +43,7 @@ class CoinGeckoUtil:
             prices.update(fetched_prices)
             
             # Cache the fetched prices
-            if self.mongo_util and self.mongo_util.db:
+            if self.mongo_util and self.mongo_util.db is not None:
                 self._cache_prices(fetched_prices)
                 
         return prices
@@ -51,7 +51,7 @@ class CoinGeckoUtil:
     def _get_cached_price(self, token_id: str) -> Optional[float]:
         """Get cached price if it exists and is recent enough"""
         try:
-            if not (self.mongo_util and self.mongo_util.db):
+            if not (self.mongo_util and self.mongo_util.db is not None):
                 return None
                 
             cache_entry = self.mongo_util.db.price_cache.find_one({"token_id": token_id})
@@ -74,7 +74,7 @@ class CoinGeckoUtil:
     def _cache_prices(self, prices: Dict[str, float]):
         """Cache prices in MongoDB"""
         try:
-            if not (self.mongo_util and self.mongo_util.db):
+            if not (self.mongo_util and self.mongo_util.db is not None):
                 return
                 
             for token_id, price in prices.items():

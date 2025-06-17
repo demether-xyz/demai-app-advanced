@@ -9,6 +9,24 @@ interface EventState {
   surfaceCard: (cardId: string) => void
   // Get latest surface request for a card
   getLatestSurfaceRequest: (cardId: string) => { cardId: string; timestamp: number; count: number } | null
+  
+  // Vault verification system
+  vaultVerification: {
+    // Map of chainId -> userAddress -> vaultAddress (null if queried but no vault, undefined if not queried)
+    userVaults: Record<number, Record<string, string | null | undefined>>
+    // Map of chainId -> userAddress -> query status
+    queryStatus: Record<number, Record<string, 'idle' | 'loading' | 'success' | 'error'>>
+    // Last query timestamps for caching
+    lastQueryTimestamp: Record<string, number>
+  }
+  
+  // Vault verification actions
+  setVaultQueryStatus: (chainId: number, userAddress: string, status: 'idle' | 'loading' | 'success' | 'error') => void
+  setUserVault: (chainId: number, userAddress: string, vaultAddress: string | null) => void
+  getUserVault: (chainId: number, userAddress: string) => string | null | undefined
+  getVaultQueryStatus: (chainId: number, userAddress: string) => 'idle' | 'loading' | 'success' | 'error'
+  shouldQueryVault: (chainId: number, userAddress: string) => boolean
+  clearVaultCache: (chainId?: number, userAddress?: string) => void
 }
 
 // Create the app store with event system
@@ -61,5 +79,139 @@ export const useAppStore = create<EventState>((set, get) => ({
   getLatestSurfaceRequest: (cardId: string) => {
     const state = get()
     return state.surfaceCardRequests[cardId] || null
+  },
+
+  // Vault verification system
+  vaultVerification: {
+    userVaults: {},
+    queryStatus: {},
+    lastQueryTimestamp: {},
+  },
+
+  setVaultQueryStatus: (chainId: number, userAddress: string, status: 'idle' | 'loading' | 'success' | 'error') => {
+    set((state) => ({
+      vaultVerification: {
+        ...state.vaultVerification,
+        queryStatus: {
+          ...state.vaultVerification.queryStatus,
+          [chainId]: {
+            ...state.vaultVerification.queryStatus[chainId],
+            [userAddress.toLowerCase()]: status,
+          },
+        },
+      },
+    }))
+  },
+
+  setUserVault: (chainId: number, userAddress: string, vaultAddress: string | null) => {
+    const now = Date.now()
+    const cacheKey = `${chainId}-${userAddress.toLowerCase()}`
+    
+    set((state) => ({
+      vaultVerification: {
+        ...state.vaultVerification,
+        userVaults: {
+          ...state.vaultVerification.userVaults,
+          [chainId]: {
+            ...state.vaultVerification.userVaults[chainId],
+            [userAddress.toLowerCase()]: vaultAddress,
+          },
+        },
+        lastQueryTimestamp: {
+          ...state.vaultVerification.lastQueryTimestamp,
+          [cacheKey]: now,
+        },
+      },
+    }))
+  },
+
+  getUserVault: (chainId: number, userAddress: string) => {
+    const state = get()
+    return state.vaultVerification.userVaults[chainId]?.[userAddress.toLowerCase()]
+  },
+
+  getVaultQueryStatus: (chainId: number, userAddress: string) => {
+    const state = get()
+    return state.vaultVerification.queryStatus[chainId]?.[userAddress.toLowerCase()] || 'idle'
+  },
+
+  shouldQueryVault: (chainId: number, userAddress: string) => {
+    const state = get()
+    const cacheKey = `${chainId}-${userAddress.toLowerCase()}`
+    const lastQuery = state.vaultVerification.lastQueryTimestamp[cacheKey]
+    const currentStatus = state.vaultVerification.queryStatus[chainId]?.[userAddress.toLowerCase()]
+    
+    // Don't query if currently loading
+    if (currentStatus === 'loading') return false
+    
+    // Query if never queried before
+    if (!lastQuery) return true
+    
+    // Query if cache is older than 5 minutes
+    const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+    return Date.now() - lastQuery > CACHE_DURATION
+  },
+
+  clearVaultCache: (chainId?: number, userAddress?: string) => {
+    set((state) => {
+      if (chainId && userAddress) {
+        // Clear specific user on specific chain
+        const key = userAddress.toLowerCase()
+        const newUserVaults = { ...state.vaultVerification.userVaults }
+        const newQueryStatus = { ...state.vaultVerification.queryStatus }
+        const newTimestamps = { ...state.vaultVerification.lastQueryTimestamp }
+        const cacheKey = `${chainId}-${key}`
+        
+        if (newUserVaults[chainId]) {
+          delete newUserVaults[chainId][key]
+        }
+        if (newQueryStatus[chainId]) {
+          delete newQueryStatus[chainId][key]
+        }
+        delete newTimestamps[cacheKey]
+        
+        return {
+          vaultVerification: {
+            ...state.vaultVerification,
+            userVaults: newUserVaults,
+            queryStatus: newQueryStatus,
+            lastQueryTimestamp: newTimestamps,
+          },
+        }
+      } else if (chainId) {
+        // Clear all users on specific chain
+        const newUserVaults = { ...state.vaultVerification.userVaults }
+        const newQueryStatus = { ...state.vaultVerification.queryStatus }
+        const newTimestamps = { ...state.vaultVerification.lastQueryTimestamp }
+        
+        delete newUserVaults[chainId]
+        delete newQueryStatus[chainId]
+        
+        // Remove timestamps for this chain
+        Object.keys(newTimestamps).forEach(key => {
+          if (key.startsWith(`${chainId}-`)) {
+            delete newTimestamps[key]
+          }
+        })
+        
+        return {
+          vaultVerification: {
+            ...state.vaultVerification,
+            userVaults: newUserVaults,
+            queryStatus: newQueryStatus,
+            lastQueryTimestamp: newTimestamps,
+          },
+        }
+      } else {
+        // Clear everything
+        return {
+          vaultVerification: {
+            userVaults: {},
+            queryStatus: {},
+            lastQueryTimestamp: {},
+          },
+        }
+      }
+    })
   },
 }))

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { useAccount, useConnect, useSignMessage } from 'wagmi'
+import { useAccount, useSignMessage } from 'wagmi'
 import Image from 'next/image'
 
 export const DEMAI_AUTH_MESSAGE = `Welcome to demAI!
@@ -14,14 +14,12 @@ interface StoredAuthData {
   address: string
 }
 
-interface DemaiConnectModalProps {
-  isOpen: boolean
+interface DemaiAuthHandlerProps {
   onSignatureUpdate: (success: boolean) => void
 }
 
-const DemaiConnectModal: React.FC<DemaiConnectModalProps> = ({ isOpen, onSignatureUpdate }) => {
-  const { isConnected, address, connector: activeConnector } = useAccount()
-  const { connect, connectors, status: connectStatus } = useConnect()
+const DemaiAuthHandler: React.FC<DemaiAuthHandlerProps> = ({ onSignatureUpdate }) => {
+  const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
   const [mounted, setMounted] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,13 +29,6 @@ const DemaiConnectModal: React.FC<DemaiConnectModalProps> = ({ isOpen, onSignatu
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  // Clear error when connection status changes
-  useEffect(() => {
-    if (isConnected) {
-      setError(null)
-    }
-  }, [isConnected])
 
   const formatAddress = useCallback((addr: string): string => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`
@@ -72,7 +63,7 @@ const DemaiConnectModal: React.FC<DemaiConnectModalProps> = ({ isOpen, onSignatu
     if (!mounted) return
 
     const checkSignature = async () => {
-      if (address && activeConnector) {
+      if (address && isConnected) {
         const isValid = hasValidSignatureForAddress(address)
         onSignatureUpdate(isValid)
       } else {
@@ -81,10 +72,10 @@ const DemaiConnectModal: React.FC<DemaiConnectModalProps> = ({ isOpen, onSignatu
     }
 
     checkSignature()
-  }, [address, activeConnector, mounted, onSignatureUpdate, hasValidSignatureForAddress])
+  }, [address, isConnected, mounted, onSignatureUpdate, hasValidSignatureForAddress])
 
   const handleSignMessage = useCallback(async () => {
-    if (!address || !activeConnector) {
+    if (!address || !isConnected) {
       setError('Wallet not connected. Please connect your wallet first.')
       return
     }
@@ -119,33 +110,18 @@ const DemaiConnectModal: React.FC<DemaiConnectModalProps> = ({ isOpen, onSignatu
     } finally {
       setIsSigningMessage(false)
     }
-  }, [address, activeConnector, signMessageAsync, onSignatureUpdate])
+  }, [address, isConnected, signMessageAsync, onSignatureUpdate])
 
-  const handleConnect = useCallback(
-    async (connector: any) => {
-      setError(null)
-      try {
-        await connect({ connector })
-      } catch (error) {
-        if (error instanceof Error) {
-          if (error.message.includes('rejected')) {
-            setError('You need to connect your wallet to use demAI. Please try again.')
-          } else {
-            setError('Failed to connect wallet. Please try again.')
-          }
-        } else {
-          setError('An unexpected error occurred. Please try again.')
-        }
-        onSignatureUpdate(false)
-      }
-    },
-    [connect, onSignatureUpdate]
-  )
+  // Don't render anything until mounted
+  if (!mounted) return null
 
-  // Don't render anything on server or before mounting
-  if (!mounted || !isOpen) return null
+  // Don't show anything if wallet is not connected (RainbowKit handles connection)
+  if (!isConnected || !address) return null
 
-  const hasValidSignature = address ? hasValidSignatureForAddress(address) : false
+  const hasValidSignature = hasValidSignatureForAddress(address)
+
+  // Don't show anything if user already has valid signature
+  if (hasValidSignature) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
@@ -202,73 +178,40 @@ const DemaiConnectModal: React.FC<DemaiConnectModalProps> = ({ isOpen, onSignatu
           )}
 
           <p className="mb-8 text-lg leading-relaxed text-gray-300">
-            {isConnected && !hasValidSignature
-              ? 'Please sign the message to access the demAI platform.'
-              : 'Connect your wallet to start using the demAI platform. Your wallet is your key to accessing all features and functionalities.'}
+            Please sign the message to access the demAI platform.
           </p>
 
-          {!isConnected ? (
-            <div className="w-full space-y-4">
-              <h3 className="mb-4 text-lg font-semibold text-cyan-300">Choose your wallet:</h3>
-              {connectors.map((connector) => (
-                <button
-                  key={connector.id}
-                  onClick={() => handleConnect(connector)}
-                  disabled={connectStatus === 'pending'}
-                  className="group relative w-full overflow-hidden rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 p-4 transition-all duration-300 hover:border-cyan-400/50 hover:from-cyan-500/30 hover:to-blue-500/30"
-                >
-                  {/* Button glow effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 to-blue-400/10 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
-
-                  <span className="relative z-10 font-medium tracking-wide text-white">
-                    {connectStatus === 'pending' ? 'Connecting...' : `Connect with ${connector.name}`}
-                  </span>
-
-                  {/* Animated border */}
-                  <div
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-400/30 via-blue-400/30 to-cyan-400/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                    style={{ padding: '1px' }}
-                  >
-                    <div className="h-full w-full rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20" />
-                  </div>
-                </button>
-              ))}
+          <div className="w-full space-y-6">
+            <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 backdrop-blur-sm">
+              <p className="font-medium text-green-400">✓ Wallet Connected</p>
+              <p className="mt-1 text-sm text-gray-300">{formatAddress(address!)}</p>
             </div>
-          ) : (
-            <div className="w-full space-y-6">
-              <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 backdrop-blur-sm">
-                <p className="font-medium text-green-400">✓ Wallet Connected</p>
-                <p className="mt-1 text-sm text-gray-300">{formatAddress(address!)}</p>
+
+            <button
+              onClick={handleSignMessage}
+              disabled={isSigningMessage}
+              className="group relative w-full overflow-hidden rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-pink-500/20 p-4 transition-all duration-300 hover:border-purple-400/50 hover:from-purple-500/30 hover:to-pink-500/30"
+            >
+              {/* Button glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-400/10 to-pink-400/10 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
+
+              <span className="relative z-10 font-medium tracking-wide text-white">
+                {isSigningMessage ? 'Signing...' : 'Sign Message to Continue'}
+              </span>
+
+              {/* Animated border */}
+              <div
+                className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400/30 via-pink-400/30 to-purple-400/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                style={{ padding: '1px' }}
+              >
+                <div className="h-full w-full rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20" />
               </div>
-
-              {!hasValidSignature && (
-                <button
-                  onClick={handleSignMessage}
-                  disabled={isSigningMessage}
-                  className="group relative w-full overflow-hidden rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-pink-500/20 p-4 transition-all duration-300 hover:border-purple-400/50 hover:from-purple-500/30 hover:to-pink-500/30"
-                >
-                  {/* Button glow effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400/10 to-pink-400/10 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
-
-                  <span className="relative z-10 font-medium tracking-wide text-white">
-                    {isSigningMessage ? 'Signing...' : 'Sign Message to Continue'}
-                  </span>
-
-                  {/* Animated border */}
-                  <div
-                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400/30 via-pink-400/30 to-purple-400/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                    style={{ padding: '1px' }}
-                  >
-                    <div className="h-full w-full rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20" />
-                  </div>
-                </button>
-              )}
-            </div>
-          )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-export default DemaiConnectModal
+export default DemaiAuthHandler 

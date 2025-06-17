@@ -35,7 +35,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
-import DemaiConnectModal, { DEMAI_AUTH_MESSAGE } from '@/components/DemaiConnectModal'
+import DemaiAuthHandler, { DEMAI_AUTH_MESSAGE } from '@/components/DemaiAuthHandler'
 import DemaiNavbar from '@/components/DemaiNavbar'
 import DemaiChatInterface from '@/components/DemaiChatInterface'
 import DashboardCard from '@/components/DashboardCard'
@@ -43,13 +43,26 @@ import FlowingChart from '@/components/FlowingChart'
 import CircularProgress from '@/components/CircularProgress'
 import WireframeOverlay from '@/components/WireframeOverlay'
 import AutomationIndicator from '@/components/AutomationIndicator'
-import { useSurfaceCard } from '@/hooks/useEvents'
+import VaultModal from '@/components/VaultModal'
+import { useSurfaceCard, useEvent, useEventEmitter } from '@/hooks/useEvents'
 import { useOpenWindow } from '@/hooks/useEvents'
 
 const DemaiPage = () => {
   const { isConnected, address } = useAccount()
   const [hasValidSignature, setHasValidSignature] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isVaultModalOpen, setIsVaultModalOpen] = useState(false)
+  
+  // Listen for vault modal events
+  const vaultOpenEvent = useEvent('vault.open')
+  const emit = useEventEmitter()
+  
+  // Handle vault modal open event
+  useEffect(() => {
+    if (vaultOpenEvent > 0) {
+      setIsVaultModalOpen(true)
+    }
+  }, [vaultOpenEvent])
 
   // Handle mounting state
   useEffect(() => {
@@ -85,9 +98,8 @@ const DemaiPage = () => {
     }
   }, [address, mounted])
 
-  // TODO: Re-enable authentication for production
-  // const shouldShowModal = !isConnected || !hasValidSignature
-  const shouldShowModal = false // Temporarily disabled for development
+  // Show main app when connected and authenticated
+  const shouldShowMainApp = isConnected && hasValidSignature
 
   // Don't render anything until mounted
   if (!mounted) {
@@ -96,32 +108,34 @@ const DemaiPage = () => {
 
   return (
     <>
-      <DemaiConnectModal
-        isOpen={shouldShowModal}
-        onSignatureUpdate={(success) => {
+      {/* Auth handler shows itself when wallet is connected but not authenticated */}
+      <DemaiAuthHandler
+        onSignatureUpdate={(success: boolean) => {
           console.log('Signature update:', success) // Debug log
           setHasValidSignature(success)
         }}
       />
-      {!shouldShowModal && (
-        <div className="relative flex h-screen w-full flex-col overflow-hidden">
-          {/* Background Image */}
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{
-              backgroundImage: 'url(/images/background.jpg)',
-            }}
-          />
+      
+      {/* Main app content - always render navbar so RainbowKit connect button works */}
+      <div className="relative flex h-screen w-full flex-col overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: 'url(/images/background.jpg)',
+          }}
+        />
 
-          {/* Dark overlay for better readability */}
-          <div className="absolute inset-0 bg-black/40" />
+        {/* Dark overlay for better readability */}
+        <div className="absolute inset-0 bg-black/40" />
 
-          {/* Navbar - Fixed at top */}
-          <div className="relative z-10">
-            <DemaiNavbar />
-          </div>
+        {/* Navbar - Fixed at top - ALWAYS visible so RainbowKit works */}
+        <div className="relative z-10">
+          <DemaiNavbar />
+        </div>
 
-          {/* Main Content Area */}
+        {/* Main Content Area - Only show when authenticated */}
+        {shouldShowMainApp && (
           <div className="relative z-10 flex-1 overflow-hidden">
             {/* Dashboard Content as background */}
             <div className="absolute inset-0 overflow-y-auto p-8">
@@ -171,14 +185,29 @@ const DemaiPage = () => {
                       </svg>
                     </div>
                     <div>
-                      <div className="text-sm text-white/90 italic">"Your ETH position could benefit from rebalancing"</div>
+                      <div className="text-sm text-white/90 italic">&ldquo;Your ETH position could benefit from rebalancing&rdquo;</div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Quick Action Cards - Lower Left */}
-              <div className="absolute bottom-8 left-12 flex space-x-4">
+              <div className="absolute bottom-8 left-12 flex space-x-4 z-20">
+                <div 
+                  onClick={() => emit('vault.open')}
+                  className="flex h-28 w-28 cursor-pointer flex-col items-center justify-center rounded-xl bg-green-600 p-5 transition-colors hover:bg-green-700"
+                >
+                  <svg className="mb-2 h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                  <span className="text-center text-xs font-medium text-white">Vault</span>
+                </div>
+
                 <div className="flex h-28 w-28 cursor-pointer flex-col items-center justify-center rounded-xl bg-purple-600 p-5 transition-colors hover:bg-purple-700">
                   <svg className="mb-2 h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
@@ -286,19 +315,27 @@ const DemaiPage = () => {
             </div>
 
             {/* Wireframe Overlay within content area */}
-            <div className="absolute inset-0">
+            <div className="absolute inset-0 z-10">
               <WireframeOverlay />
             </div>
           </div>
+        )}
 
-          {/* Floating Chat Interface - Superimposed */}
+        {/* Floating Chat Interface - Superimposed - only show when authenticated */}
+        {shouldShowMainApp && (
           <div className="pointer-events-none absolute inset-0 z-30">
             <div className="pointer-events-auto">
               <DemaiChatInterface />
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Vault Modal - Global overlay */}
+        <VaultModal 
+          isOpen={isVaultModalOpen} 
+          onClose={() => setIsVaultModalOpen(false)} 
+        />
+      </div>
     </>
   )
 }

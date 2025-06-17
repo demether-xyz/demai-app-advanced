@@ -10,3 +10,4 @@ alwaysApply: true
 - Use clean and non-verbose code
 - For Backend, always use poetry, we use FastAPI
 - For Frontend use pnpm
+- Don't create documentation unless asked

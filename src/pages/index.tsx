@@ -111,7 +111,6 @@ const DemaiPage = () => {
       {/* Auth handler shows itself when wallet is connected but not authenticated */}
       <DemaiAuthHandler
         onSignatureUpdate={(success: boolean) => {
-          console.log('Signature update:', success) // Debug log
           setHasValidSignature(success)
         }}
       />

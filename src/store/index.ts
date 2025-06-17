@@ -1,5 +1,21 @@
 import { create } from 'zustand'
 
+// Token balance and approval types
+export interface TokenBalanceAndApproval {
+  symbol: string
+  name: string
+  icon: string
+  decimals: number
+  address: `0x${string}`
+  balance: string
+  balanceRaw: bigint
+  allowance: string
+  allowanceRaw: bigint
+  hasAllowance: boolean
+  isLoading: boolean
+  error?: string
+}
+
 // Event system types
 interface EventState {
   events: Record<string, number>
@@ -20,6 +36,14 @@ interface EventState {
     lastQueryTimestamp: Record<string, number>
   }
   
+  // Token balances and approvals system
+  tokenBalancesAndApprovals: {
+    // Map of cacheKey (chainId-userAddress-spenderAddress) -> token data
+    cache: Record<string, TokenBalanceAndApproval[]>
+    // Last query timestamps for caching
+    lastQueryTimestamp: Record<string, number>
+  }
+  
   // Vault verification actions
   setVaultQueryStatus: (chainId: number, userAddress: string, status: 'idle' | 'loading' | 'success' | 'error') => void
   setUserVault: (chainId: number, userAddress: string, vaultAddress: string | null) => void
@@ -27,6 +51,11 @@ interface EventState {
   getVaultQueryStatus: (chainId: number, userAddress: string) => 'idle' | 'loading' | 'success' | 'error'
   shouldQueryVault: (chainId: number, userAddress: string) => boolean
   clearVaultCache: (chainId?: number, userAddress?: string) => void
+  
+  // Token balances and approvals actions
+  setTokenBalancesAndApprovals: (cacheKey: string, tokens: TokenBalanceAndApproval[]) => void
+  getTokenBalancesAndApprovals: (cacheKey: string) => TokenBalanceAndApproval[] | undefined
+  clearTokenBalancesAndApprovals: (cacheKey?: string) => void
 }
 
 // Create the app store with event system
@@ -85,6 +114,12 @@ export const useAppStore = create<EventState>((set, get) => ({
   vaultVerification: {
     userVaults: {},
     queryStatus: {},
+    lastQueryTimestamp: {},
+  },
+
+  // Token balances and approvals system
+  tokenBalancesAndApprovals: {
+    cache: {},
     lastQueryTimestamp: {},
   },
 
@@ -208,6 +243,59 @@ export const useAppStore = create<EventState>((set, get) => ({
           vaultVerification: {
             userVaults: {},
             queryStatus: {},
+            lastQueryTimestamp: {},
+          },
+        }
+      }
+    })
+  },
+
+  // Token balances and approvals actions
+  setTokenBalancesAndApprovals: (cacheKey: string, tokens: TokenBalanceAndApproval[]) => {
+    const now = Date.now()
+    
+    set((state) => ({
+      tokenBalancesAndApprovals: {
+        ...state.tokenBalancesAndApprovals,
+        cache: {
+          ...state.tokenBalancesAndApprovals.cache,
+          [cacheKey]: tokens,
+        },
+        lastQueryTimestamp: {
+          ...state.tokenBalancesAndApprovals.lastQueryTimestamp,
+          [cacheKey]: now,
+        },
+      },
+    }))
+  },
+
+  getTokenBalancesAndApprovals: (cacheKey: string) => {
+    const state = get()
+    return state.tokenBalancesAndApprovals.cache[cacheKey]
+  },
+
+  clearTokenBalancesAndApprovals: (cacheKey?: string) => {
+    set((state) => {
+      if (cacheKey) {
+        // Clear specific cache entry
+        const newCache = { ...state.tokenBalancesAndApprovals.cache }
+        const newTimestamps = { ...state.tokenBalancesAndApprovals.lastQueryTimestamp }
+        
+        delete newCache[cacheKey]
+        delete newTimestamps[cacheKey]
+        
+        return {
+          tokenBalancesAndApprovals: {
+            ...state.tokenBalancesAndApprovals,
+            cache: newCache,
+            lastQueryTimestamp: newTimestamps,
+          },
+        }
+      } else {
+        // Clear all cache
+        return {
+          tokenBalancesAndApprovals: {
+            cache: {},
             lastQueryTimestamp: {},
           },
         }

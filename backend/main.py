@@ -6,6 +6,8 @@ from eth_account.messages import encode_defunct
 from web3 import Web3
 from typing import Optional
 from config import logger
+from utils.mongo_util import MongoUtil
+from utils.portfolio_service import PortfolioService
 
 app = FastAPI()
 
@@ -24,6 +26,11 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
+    wallet_address: str
+    signature: str
+    auth_message: str
+
+class PortfolioRequest(BaseModel):
     wallet_address: str
     signature: str
     auth_message: str
@@ -61,6 +68,40 @@ async def chat_endpoint(request: ChatRequest):
         chat_id=request.wallet_address
     )
     return {"response": response}
+
+@app.post("/portfolio/")
+async def portfolio_endpoint(request: PortfolioRequest):
+    """Get portfolio summary for a wallet address"""
+    # TODO: Re-enable authentication for production
+    # Verify the signature
+    # is_valid = verify_signature(
+    #     message=request.auth_message,
+    #     signature=request.signature,
+    #     address=request.wallet_address
+    # )
+    # 
+    # if not is_valid:
+    #     raise HTTPException(status_code=401, detail="Invalid signature or wallet address")
+    
+    try:
+        # Initialize MongoDB connection
+        mongo_util = MongoUtil()
+        mongo_util.connect()
+        
+        # Initialize portfolio service
+        portfolio_service = PortfolioService(mongo_util)
+        
+        # Get portfolio summary
+        portfolio_data = portfolio_service.get_portfolio_summary(request.wallet_address)
+        
+        # Close MongoDB connection
+        mongo_util.close()
+        
+        return portfolio_data
+        
+    except Exception as e:
+        logger.error(f"Error getting portfolio for {request.wallet_address}: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

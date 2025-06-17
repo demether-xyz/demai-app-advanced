@@ -16,6 +16,25 @@ interface ApiResponse {
   error?: string
 }
 
+interface PortfolioResponse {
+  success: boolean
+  data?: {
+    wallet_address: string
+    total_value_usd: number
+    holdings: Array<{
+      symbol: string
+      name: string
+      chain_id: number
+      balance: number
+      price_usd: number
+      value_usd: number
+    }>
+    chains_count: number
+    tokens_count: number
+  }
+  error?: string
+}
+
 // Function to get stored auth data
 const getStoredAuthData = (): AuthData | null => {
   const storedData = localStorage.getItem('demai_auth_data')
@@ -119,6 +138,77 @@ export const sendMessageToDemai = async (message: string): Promise<ApiResponse> 
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An unexpected error occurred while sending your message.',
+    }
+  }
+}
+
+// Function to get portfolio data
+export const getPortfolioData = async (walletAddress: string): Promise<PortfolioResponse> => {
+  try {
+    // TODO: Re-enable authentication for production
+    // Get authentication data
+    // const authData = getStoredAuthData()
+    // if (!authData) {
+    //   return {
+    //     success: false,
+    //     error: 'No authentication data found. Please connect your wallet and sign the message.',
+    //   }
+    // }
+
+    // Construct the full endpoint URL
+    const endpointUrl = `${API_BASE_URL}/portfolio/`
+
+    try {
+      const response = await fetch(endpointUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          wallet_address: walletAddress,
+          signature: 'dev-signature', // Dummy signature for development
+          auth_message: 'dev-message', // Dummy auth message for development
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }))
+        if (response.status === 401) {
+          return {
+            success: false,
+            error: errorData.detail || 'Invalid wallet authentication. Please reconnect your wallet.',
+          }
+        }
+        return {
+          success: false,
+          error: errorData.detail || `Server error! Status: ${response.status}`,
+        }
+      }
+
+      const data = await response.json()
+
+      return {
+        success: true,
+        data: data
+      }
+    } catch (fetchError) {
+      // Handle network-related errors specifically
+      if (fetchError instanceof TypeError && fetchError.message === 'Failed to fetch') {
+        return {
+          success: false,
+          error: 'Unable to connect to the portfolio service. Please check if the service is running and try again.',
+        }
+      }
+      return {
+        success: false,
+        error: fetchError instanceof Error ? fetchError.message : 'Network error occurred',
+      }
+    }
+  } catch (error) {
+    console.error('Error getting portfolio data:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred while getting portfolio data.',
     }
   }
 }

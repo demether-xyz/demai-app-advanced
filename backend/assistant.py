@@ -4,10 +4,10 @@ from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.chains import ConversationChain
 from dotenv import load_dotenv
-from utils.mongo_util import MongoUtil
 from utils.prompt_utils import get_prompt
 from utils.json_parser import extract_json_content
 from config import logger
+from pancaik.core.config import get_config
 import json
 
 load_dotenv()
@@ -93,6 +93,44 @@ def get_llm():
         temperature=0.7
     )
 
+async def _fetch_chat_history(db, chat_id: str):
+    """Fetch chat history for a given chat_id from database"""
+    if db is None:
+        logger.error("Database connection not established.")
+        return []
+    
+    logger.info(f"Fetching history for chat_id: {chat_id}")
+    try:
+        # Database is async Motor, use await for database operations
+        cursor = db.messages.find({"chat_id": chat_id}).sort("timestamp").limit(10)
+        history = await cursor.to_list(length=10)
+        return history
+    except Exception as e:
+        logger.error(f"Error fetching chat history: {e}")
+        return []
+
+async def _save_message(db, chat_id: str, sender: str, content: str):
+    """Save a message to the chat history in database"""
+    if db is None:
+        logger.error("Database connection not established.")
+        return False
+    
+    try:
+        from datetime import datetime
+        message_doc = {
+            "chat_id": chat_id,
+            "sender": sender,
+            "content": content,
+            "timestamp": datetime.utcnow()
+        }
+        # Database is async Motor, use await for database operations
+        result = await db.messages.insert_one(message_doc)
+        logger.info(f"Message saved with ID: {result.inserted_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error saving message: {e}")
+        return False
+
 def format_chat_history_structured(chat_history):
     """Format MongoDB chat history as structured data"""
     if not chat_history:
@@ -109,16 +147,19 @@ def format_chat_history_structured(chat_history):
     
     return formatted_messages
 
-def run_chatbot(message: str, chat_id: str, available_windows: list = None) -> str:
+async def run_chatbot(message: str, chat_id: str, available_windows: list = None) -> str:
     """Run chatbot with window opening capabilities"""
-    mongo = MongoUtil()
     try:
-        mongo.connect()
+        # Get database from pancaik config
+        db = get_config("db")
+        if db is None:
+            logger.error("Database not initialized")
+            return json.dumps({"text": "Sorry, I'm having trouble accessing the database right now."})
         
         # Save the user message first
-        mongo.save_message(chat_id, "User", message)
+        await _save_message(db, chat_id, "User", message)
         
-        chat_history = mongo.fetch_chat_history(chat_id)
+        chat_history = await _fetch_chat_history(db, chat_id)
         
         # Use hardcoded windows or fallback to provided ones
         windows_to_use = AVAILABLE_WINDOW_IDS
@@ -181,16 +222,14 @@ You can open multiple windows at once to show related information.
         if parsed_response and "text" in parsed_response:
             # Valid JSON response with expected structure
             ai_text = parsed_response.get("text", response.content)
-            mongo.save_message(chat_id, "Assistant", ai_text)
+            await _save_message(db, chat_id, "Assistant", ai_text)
             return json.dumps(parsed_response)  # Return the parsed JSON
         else:
             # Fallback: wrap response in expected JSON format
-            mongo.save_message(chat_id, "Assistant", response.content)
+            await _save_message(db, chat_id, "Assistant", response.content)
             return json.dumps({"text": response.content})
         
     except Exception as e:
-        print(f"Error in chatbot: {e}")
+        logger.error(f"Error in chatbot: {e}")
         error_response = "Sorry, I'm having trouble processing your request right now."
-        return json.dumps({"text": error_response})
-    finally:
-        mongo.close() 
+        return json.dumps({"text": error_response}) 

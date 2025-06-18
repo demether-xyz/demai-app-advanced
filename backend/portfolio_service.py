@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
+from typing import Dict, List, Optional, Any, TYPE_CHECKING, Union
 from decimal import Decimal
 import logging
 import asyncio
@@ -9,6 +9,7 @@ from strategy_config import STRATEGY_BALANCE_CHECKERS
 
 if TYPE_CHECKING:
     from web3 import Web3
+    from pymongo.database import Database
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +17,16 @@ logger = logging.getLogger(__name__)
 class PortfolioService:
     """Service for fetching portfolio balances and calculating total value"""
     
-    def __init__(self, mongo_util: Optional[MongoUtil] = None):
-        self.mongo_util = mongo_util
-        self.coingecko = CoinGeckoUtil(mongo_util)
+    def __init__(self, db_or_mongo_util: Optional[Union["Database", MongoUtil]] = None):
+        # Handle both database and MongoUtil for backward compatibility
+        if db_or_mongo_util is not None and hasattr(db_or_mongo_util, 'db'):  # It's a MongoUtil
+            self.mongo_util = db_or_mongo_util
+            self.db = db_or_mongo_util.db
+        else:  # It's a database directly or None
+            self.mongo_util = None
+            self.db = db_or_mongo_util
+            
+        self.coingecko = CoinGeckoUtil(self.mongo_util if self.mongo_util is not None else self.db)
         self.web3_instances = {}
         self.Web3 = None
         self._import_web3()
@@ -183,17 +191,13 @@ class PortfolioService:
             }
     
     async def _get_token_prices_async(self, coingecko_ids: List[str]) -> Dict[str, float]:
-        """Async wrapper for getting token prices"""
+        """Async wrapper for getting token prices with proper event loop handling"""
         if not coingecko_ids:
             logger.info("No CoinGecko IDs provided, returning empty prices")
             return {}
             
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None, 
-            self.coingecko.get_token_prices, 
-            coingecko_ids
-        )
+        # Use the async version that properly handles the event loop and database
+        return await self.coingecko.get_token_prices_async(coingecko_ids)
     
     async def _get_all_token_balances(self, vault_address: str) -> List[Dict[str, Any]]:
         """Get balances for all ERC20 tokens across all chains concurrently"""

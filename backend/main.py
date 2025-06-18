@@ -6,10 +6,24 @@ from eth_account.messages import encode_defunct
 from web3 import Web3
 from typing import Optional
 from config import logger
-from utils.mongo_util import MongoUtil
 from portfolio_service import PortfolioService
+from setup import setup
+from contextlib import asynccontextmanager
+from pancaik.core.config import get_config
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic here
+    await setup(app)
+    yield
+    # Shutdown logic here
+    db = get_config("db")
+    if db is not None:
+        # Get the client instance from the database
+        client = db.client
+        client.close()
+
+app = FastAPI(lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
@@ -63,7 +77,7 @@ async def chat_endpoint(request: ChatRequest):
 
     # Run the chatbot with the user's message and wallet address
     # The assistant.py has hardcoded window list, no need to pass from frontend
-    response = run_chatbot(
+    response = await run_chatbot(
         message=request.message, 
         chat_id=request.wallet_address
     )
@@ -84,18 +98,16 @@ async def portfolio_endpoint(request: PortfolioRequest):
     #     raise HTTPException(status_code=401, detail="Invalid signature or vault address")
     
     try:
-        # Initialize MongoDB connection
-        mongo_util = MongoUtil()
-        mongo_util.connect()
+        # Get database from pancaik config
+        db = get_config("db")
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database not initialized")
         
-        # Initialize portfolio service
-        portfolio_service = PortfolioService(mongo_util)
+        # Initialize portfolio service with pancaik database
+        portfolio_service = PortfolioService(db)
         
         # Get portfolio summary for the vault address
         portfolio_data = await portfolio_service.get_portfolio_summary(request.vault_address)
-        
-        # Close MongoDB connection
-        mongo_util.close()
         
         return portfolio_data
         

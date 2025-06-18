@@ -321,7 +321,7 @@ const DemaiPage = () => {
               {/* Running Automation Indicators - Scattered like target design - Dynamic from portfolio data */}
               {(() => {
                 // Get strategy holdings from portfolio data
-                const strategyHoldings = portfolioData.holdings.filter((holding: PortfolioHolding) => holding.type === 'strategy')
+                const strategyHoldings = (portfolioData.holdings || []).filter((holding: PortfolioHolding) => holding.type === 'strategy')
                 
                 // Available positions for scattering indicators
                 const positions = [

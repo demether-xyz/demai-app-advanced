@@ -1,4 +1,3 @@
-- contract deposit into AAVE / remove registration requirement for now
 - one-time > tool to agent add to aave, remove from aave on command
 - deploy
 - regular function to do something

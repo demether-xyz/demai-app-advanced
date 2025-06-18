@@ -14,6 +14,10 @@ interface ApiResponse {
   success: boolean
   message?: string
   error?: string
+  data?: {
+    text: string
+    windows?: string[]
+  }
 }
 
 interface PortfolioResponse {
@@ -102,6 +106,7 @@ export const sendMessageToDemai = async (message: string): Promise<ApiResponse> 
 
       const data = await response.json()
 
+      // The backend returns a response field containing JSON string
       if (!data || typeof data.response !== 'string') {
         return {
           success: false,
@@ -109,9 +114,31 @@ export const sendMessageToDemai = async (message: string): Promise<ApiResponse> 
         }
       }
 
-      return {
-        success: true,
-        message: data.response,
+      // Parse the JSON response from the backend
+      try {
+        const parsedResponse = JSON.parse(data.response)
+        
+        if (parsedResponse && parsedResponse.text) {
+          return {
+            success: true,
+            data: {
+              text: parsedResponse.text,
+              windows: parsedResponse.windows || []
+            }
+          }
+        } else {
+          // Fallback if parsing fails
+          return {
+            success: true,
+            message: data.response,
+          }
+        }
+      } catch (parseError) {
+        // If JSON parsing fails, treat as plain text
+        return {
+          success: true,
+          message: data.response,
+        }
       }
     } catch (fetchError) {
       // Handle network-related errors specifically

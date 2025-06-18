@@ -197,7 +197,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
           // Then open new windows with a small delay to ensure close happens first
           const windowsToOpen = aiResponse.windows
           setTimeout(() => {
-            windowsToOpen.forEach(windowId => {
+            windowsToOpen.forEach((windowId: string) => {
               if (AVAILABLE_WINDOW_IDS.includes(windowId)) {
                 console.log(`Opening window from API response: ${windowId}`)
                 openWindow(windowId)
@@ -207,6 +207,9 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
         }
         
         console.log('✅ Got API response:', aiResponseText)
+      } else if (response.success && response.message) {
+        // Fallback to message property
+        aiResponseText = response.message
       } else {
         console.log('❌ API failed:', response.error)
         aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'
@@ -286,7 +289,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
             // Then open new windows with a small delay to ensure close happens first
             const windowsToOpen = aiResponse.windows
             setTimeout(() => {
-              windowsToOpen.forEach(windowId => {
+              windowsToOpen.forEach((windowId: string) => {
                 if (AVAILABLE_WINDOW_IDS.includes(windowId)) {
                   console.log(`Opening window from API response: ${windowId}`)
                   openWindow(windowId)
@@ -296,6 +299,9 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
           }
           
           console.log('✅ Got API response:', aiResponseText)
+        } else if (response.success && response.message) {
+          // Fallback to message property
+          aiResponseText = response.message
         } else {
           console.log('❌ API failed:', response.error)
           aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'

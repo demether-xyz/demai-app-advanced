@@ -46,55 +46,22 @@ import AutomationIndicator from '@/components/AutomationIndicator'
 import VaultModal from '@/components/VaultModal'
 import { useSurfaceCard, useEvent, useEventEmitter } from '@/hooks/useEvents'
 import { useOpenWindow } from '@/hooks/useEvents'
-import { getPortfolioData } from '@/services/demaiApi'
-import { useVaultVerification } from '@/hooks/useVaultVerification'
-
-interface PortfolioData {
-  total_value_usd: number
-  strategy_value_usd: number
-  tokens_count: number
-  chains_count: number
-  strategy_count: number
-  active_strategies: string[]
-  holdings: Array<{
-    symbol: string
-    name: string
-    chain_id: number
-    balance: number
-    price_usd: number
-    value_usd: number
-    type?: string
-    strategy?: string
-    protocol?: string
-    strategy_type?: string
-  }>
-  isLoading: boolean
-  error: string | null
-}
+import { usePortfolio } from '@/hooks/usePortfolio'
+import { PortfolioData, PortfolioHolding } from '@/store'
 
 const DemaiPage = () => {
   const { isConnected, address } = useAccount()
   const [hasValidSignature, setHasValidSignature] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [isVaultModalOpen, setIsVaultModalOpen] = useState(false)
-  const [portfolioData, setPortfolioData] = useState<PortfolioData>({
-    total_value_usd: 0,
-    strategy_value_usd: 0,
-    tokens_count: 0,
-    chains_count: 0,
-    strategy_count: 0,
-    active_strategies: [],
-    holdings: [],
-    isLoading: true,
-    error: null
-  })
   
-  // Get vault verification data
-  const { vaultAddress, hasVault, isLoading: isVaultLoading } = useVaultVerification(isConnected && hasValidSignature)
+  // Use the portfolio hook instead of local state
+  const { portfolioData, refreshPortfolio, isVaultLoading, hasVault, vaultAddress } = usePortfolio(isConnected && hasValidSignature)
   
   // Listen for vault modal events
   const vaultOpenEvent = useEvent('vault.open')
   const emit = useEventEmitter()
+  const openWindow = useOpenWindow()
   
   // Handle vault modal open event
   useEffect(() => {
@@ -140,52 +107,7 @@ const DemaiPage = () => {
   // Show main app when connected and authenticated
   const shouldShowMainApp = isConnected && hasValidSignature
 
-  // Fetch portfolio data when vault is available
-  useEffect(() => {
-    const fetchPortfolio = async () => {
-      if (!shouldShowMainApp || !hasVault || !vaultAddress || isVaultLoading) {
-        return
-      }
-
-      setPortfolioData((prev: PortfolioData) => ({ ...prev, isLoading: true, error: null }))
-
-      try {
-        const result = await getPortfolioData(vaultAddress)
-        if (result.success && result.data) {
-          // Calculate strategy value from holdings
-          const strategyValue = result.data.holdings
-            .filter(holding => holding.type === 'strategy')
-            .reduce((sum, holding) => sum + holding.value_usd, 0)
-          
-          setPortfolioData({
-            total_value_usd: result.data.total_value_usd,
-            strategy_value_usd: strategyValue,
-            tokens_count: result.data.tokens_count,
-            chains_count: result.data.chains_count,
-            strategy_count: result.data.strategy_count || 0,
-            active_strategies: result.data.active_strategies || [],
-            holdings: result.data.holdings || [],
-            isLoading: false,
-            error: null
-          })
-        } else {
-          setPortfolioData((prev: PortfolioData) => ({
-            ...prev,
-            isLoading: false,
-            error: result.error || 'Failed to fetch portfolio data'
-          }))
-        }
-      } catch (error) {
-        setPortfolioData((prev: PortfolioData) => ({
-          ...prev,
-          isLoading: false,
-          error: 'Failed to fetch portfolio data'
-        }))
-      }
-    }
-
-    fetchPortfolio()
-  }, [shouldShowMainApp, hasVault, vaultAddress, isVaultLoading])
+  // Portfolio data is now managed by the usePortfolio hook
 
   // Format currency values with smart decimal places based on value size
   const formatCurrency = (value: number) => {
@@ -361,7 +283,10 @@ const DemaiPage = () => {
                   <span className="text-center text-xs font-medium text-white">Vault</span>
                 </div>
 
-                <div className="flex h-28 w-28 cursor-pointer flex-col items-center justify-center rounded-xl bg-purple-600 p-5 transition-colors hover:bg-purple-700">
+                <div 
+                  onClick={() => openWindow('portfolio')}
+                  className="flex h-28 w-28 cursor-pointer flex-col items-center justify-center rounded-xl bg-purple-600 p-5 transition-colors hover:bg-purple-700"
+                >
                   <svg className="mb-2 h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -393,78 +318,108 @@ const DemaiPage = () => {
                 </div>
               </div>
 
-              {/* Running Automation Indicators - Scattered like target design */}
-              <AutomationIndicator
-                position="top-32 left-1/3"
-                title="Aave USDC"
-                value="$12,450"
-                iconColor="bg-blue-500"
-                icon={
-                  <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" />
-                  </svg>
-                }
-              />
+              {/* Running Automation Indicators - Scattered like target design - Dynamic from portfolio data */}
+              {(() => {
+                // Get strategy holdings from portfolio data
+                const strategyHoldings = portfolioData.holdings.filter((holding: PortfolioHolding) => holding.type === 'strategy')
+                
+                // Available positions for scattering indicators
+                const positions = [
+                  "top-32 left-1/3",
+                  "top-48 right-1/4", 
+                  "bottom-1/3 left-1/2",
+                  "top-1/2 left-2/3",
+                  "bottom-1/4 right-1/3",
+                  "top-1/4 right-1/2",
+                  "bottom-1/2 left-1/4",
+                  "top-2/3 right-1/5"
+                ]
 
-              <AutomationIndicator
-                position="top-48 right-1/4"
-                title="Compound ETH"
-                value="$8,750"
-                iconColor="bg-green-500"
-                icon={
-                  <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                // Protocol to display mapping
+                const getProtocolDisplay = (protocol?: string, strategy?: string) => {
+                  const protocolMap: { [key: string]: string } = {
+                    'aave': 'Aave',
+                    'aave_v3': 'Aave V3',
+                    'compound': 'Compound',
+                    'curve': 'Curve',
+                    'yearn': 'Yearn',
+                    'uniswap': 'Uniswap',
+                    'uniswap_v3': 'Uniswap V3'
+                  }
+                  return protocolMap[protocol || ''] || protocolMap[strategy || ''] || protocol || strategy || 'DeFi'
                 }
-              />
 
-              <AutomationIndicator
-                position="bottom-1/3 left-1/2"
-                title="Curve 3Pool"
-                value="$15,200"
-                iconColor="bg-purple-500"
-                icon={
-                  <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                // Protocol to color mapping
+                const getProtocolColor = (protocol?: string, strategy?: string) => {
+                  const colorMap: { [key: string]: string } = {
+                    'aave': 'bg-blue-500',
+                    'aave_v3': 'bg-blue-500',
+                    'compound': 'bg-green-500',
+                    'curve': 'bg-purple-500',
+                    'yearn': 'bg-orange-500',
+                    'uniswap': 'bg-cyan-500',
+                    'uniswap_v3': 'bg-cyan-500'
+                  }
+                  return colorMap[protocol || ''] || colorMap[strategy || ''] || 'bg-gray-500'
                 }
-              />
 
-              <AutomationIndicator
-                position="top-1/2 left-2/3"
-                title="Yearn Vault"
-                value="$6,890"
-                iconColor="bg-orange-500"
-                icon={
-                  <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                // Protocol to icon mapping
+                const getProtocolIcon = (protocol?: string, strategy?: string) => {
+                  const iconMap: { [key: string]: React.ReactElement } = {
+                    'aave': (
+                      <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" />
+                      </svg>
+                    ),
+                    'aave_v3': (
+                      <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" />
+                      </svg>
+                    ),
+                    'compound': (
+                      <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    ),
+                    'curve': (
+                      <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    ),
+                    'yearn': (
+                      <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                      </svg>
+                    ),
+                    'uniswap': (
+                      <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    ),
+                    'uniswap_v3': (
+                      <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    )
+                  }
+                  return iconMap[protocol || ''] || iconMap[strategy || ''] || (
+                    <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  )
                 }
-              />
 
-              <AutomationIndicator
-                position="bottom-1/4 right-1/3"
-                title="Uniswap V3"
-                value="$4,320"
-                iconColor="bg-cyan-500"
-                icon={
-                  <svg className="h-4 w-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                }
-              />
+                return strategyHoldings.map((holding: PortfolioHolding, index: number) => (
+                  <AutomationIndicator
+                    key={`${holding.symbol}-${holding.protocol}-${index}`}
+                    position={positions[index % positions.length]}
+                    title={`${getProtocolDisplay(holding.protocol || '', holding.strategy)} ${holding.symbol}`}
+                    value={formatCurrency(holding.value_usd)}
+                    iconColor={getProtocolColor(holding.protocol || '', holding.strategy)}
+                    icon={getProtocolIcon(holding.protocol || '', holding.strategy)}
+                  />
+                ))
+              })()}
             </div>
 
             {/* Wireframe Overlay within content area */}

@@ -11,3 +11,4 @@ alwaysApply: true
 - For Backend, always use poetry, we use FastAPI
 - For Frontend use pnpm
 - Don't create README / documentation unless asked
+- DONT RUN any FE/BE, I will run them manually, as you change they refresh/reload. Can you use curl if needed

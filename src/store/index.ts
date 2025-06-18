@@ -16,6 +16,33 @@ export interface TokenBalanceAndApproval {
   error?: string
 }
 
+// Portfolio data types
+export interface PortfolioHolding {
+  symbol: string
+  name: string
+  chain_id: number
+  balance: number
+  price_usd: number
+  value_usd: number
+  type?: string
+  strategy?: string
+  protocol?: string
+  strategy_type?: string
+}
+
+export interface PortfolioData {
+  total_value_usd: number
+  strategy_value_usd: number
+  tokens_count: number
+  chains_count: number
+  strategy_count: number
+  active_strategies: string[]
+  holdings: PortfolioHolding[]
+  isLoading: boolean
+  error: string | null
+  lastUpdated?: number
+}
+
 // Event system types
 interface EventState {
   events: Record<string, number>
@@ -43,6 +70,14 @@ interface EventState {
     // Last query timestamps for caching
     lastQueryTimestamp: Record<string, number>
   }
+
+  // Portfolio system
+  portfolio: {
+    // Map of vaultAddress -> portfolio data
+    cache: Record<string, PortfolioData>
+    // Last query timestamps for caching
+    lastQueryTimestamp: Record<string, number>
+  }
   
   // Vault verification actions
   setVaultQueryStatus: (chainId: number, userAddress: string, status: 'idle' | 'loading' | 'success' | 'error') => void
@@ -56,6 +91,14 @@ interface EventState {
   setTokenBalancesAndApprovals: (cacheKey: string, tokens: TokenBalanceAndApproval[]) => void
   getTokenBalancesAndApprovals: (cacheKey: string) => TokenBalanceAndApproval[] | undefined
   clearTokenBalancesAndApprovals: (cacheKey?: string) => void
+
+  // Portfolio actions
+  setPortfolioData: (vaultAddress: string, data: PortfolioData) => void
+  getPortfolioData: (vaultAddress: string) => PortfolioData | undefined
+  setPortfolioLoading: (vaultAddress: string, isLoading: boolean) => void
+  setPortfolioError: (vaultAddress: string, error: string | null) => void
+  shouldQueryPortfolio: (vaultAddress: string) => boolean
+  clearPortfolioCache: (vaultAddress?: string) => void
 }
 
 // Create the app store with event system
@@ -295,6 +338,111 @@ export const useAppStore = create<EventState>((set, get) => ({
         // Clear all cache
         return {
           tokenBalancesAndApprovals: {
+            cache: {},
+            lastQueryTimestamp: {},
+          },
+        }
+      }
+    })
+  },
+
+  // Portfolio system
+  portfolio: {
+    cache: {},
+    lastQueryTimestamp: {},
+  },
+
+  // Portfolio actions
+  setPortfolioData: (vaultAddress: string, data: PortfolioData) => {
+    const now = Date.now()
+    
+    set((state) => ({
+      portfolio: {
+        ...state.portfolio,
+        cache: {
+          ...state.portfolio.cache,
+          [vaultAddress]: data,
+        },
+        lastQueryTimestamp: {
+          ...state.portfolio.lastQueryTimestamp,
+          [vaultAddress]: now,
+        },
+      },
+    }))
+  },
+
+  getPortfolioData: (vaultAddress: string) => {
+    const state = get()
+    return state.portfolio.cache[vaultAddress]
+  },
+
+  setPortfolioLoading: (vaultAddress: string, isLoading: boolean) => {
+    set((state) => ({
+      portfolio: {
+        ...state.portfolio,
+        cache: {
+          ...state.portfolio.cache,
+          [vaultAddress]: {
+            ...state.portfolio.cache[vaultAddress],
+            isLoading,
+          },
+        },
+      },
+    }))
+  },
+
+  setPortfolioError: (vaultAddress: string, error: string | null) => {
+    set((state) => ({
+      portfolio: {
+        ...state.portfolio,
+        cache: {
+          ...state.portfolio.cache,
+          [vaultAddress]: {
+            ...state.portfolio.cache[vaultAddress],
+            error,
+          },
+        },
+      },
+    }))
+  },
+
+  shouldQueryPortfolio: (vaultAddress: string) => {
+    const state = get()
+    const lastQuery = state.portfolio.lastQueryTimestamp[vaultAddress]
+    const currentStatus = state.portfolio.cache[vaultAddress]?.isLoading
+    
+    // Don't query if currently loading
+    if (currentStatus === true) return false
+    
+    // Query if never queried before
+    if (!lastQuery) return true
+    
+    // Query if cache is older than 5 minutes
+    const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+    return Date.now() - lastQuery > CACHE_DURATION
+  },
+
+  clearPortfolioCache: (vaultAddress?: string) => {
+    set((state) => {
+      if (vaultAddress) {
+        // Clear specific portfolio data
+        const newCache = { ...state.portfolio.cache }
+        const newTimestamps = { ...state.portfolio.lastQueryTimestamp }
+        
+        delete newCache[vaultAddress]
+        delete newTimestamps[vaultAddress]
+        
+        return {
+          portfolio: {
+            ...state.portfolio,
+            cache: newCache,
+            lastQueryTimestamp: newTimestamps,
+          },
+        }
+      } else {
+        // Clear all portfolio data
+        return {
+          portfolio: {
             cache: {},
             lastQueryTimestamp: {},
           },

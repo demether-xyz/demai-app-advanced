@@ -4,7 +4,7 @@ Test file for strategy execution examples
 import asyncio
 import os
 from strategies import StrategyExecutor
-from aave_strategy import supply_to_aave, withdraw_from_aave
+from backend.strategies.aave_strategy import supply_to_aave, withdraw_from_aave
 
 
 def create_strategy_executor(chain_id: int = 42161) -> StrategyExecutor:

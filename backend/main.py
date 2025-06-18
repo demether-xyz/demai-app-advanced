@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from assistant import run_chatbot
+from services.assistant import run_chatbot
 from eth_account.messages import encode_defunct
 from web3 import Web3
 from typing import Optional
 from config import logger
-from portfolio_service import PortfolioService
+from services.portfolio_service import PortfolioService
 from setup import setup
 from contextlib import asynccontextmanager
 from pancaik.core.config import get_config

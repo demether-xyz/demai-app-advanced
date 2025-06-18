@@ -1,7 +1,7 @@
 """
 Strategy configuration file containing contract addresses and function definitions
 """
-from aave_strategy import AAVE_STRATEGY_CONTRACTS, AAVE_STRATEGY_FUNCTIONS, get_aave_strategy_balances
+from .aave_strategy import AAVE_STRATEGY_CONTRACTS, AAVE_STRATEGY_FUNCTIONS, get_aave_strategy_balances
 
 # Combined strategy contract addresses from all protocol implementations
 STRATEGY_CONTRACTS = {

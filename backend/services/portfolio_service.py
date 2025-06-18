@@ -5,7 +5,7 @@ import asyncio
 from utils.coingecko_util import CoinGeckoUtil
 from utils.mongo_util import MongoUtil
 from config import SUPPORTED_TOKENS, RPC_ENDPOINTS, NATIVE_CURRENCIES, ERC20_ABI
-from strategy_config import STRATEGY_BALANCE_CHECKERS
+from strategies.strategy_config import STRATEGY_BALANCE_CHECKERS
 
 if TYPE_CHECKING:
     from web3 import Web3

@@ -13,7 +13,7 @@ VAULT_ADDRESS = "0xdBFCBEDe24F05a7d4EaeD44C115F0Fa7803F5e49"
 async def check_portfolio():
     """Check portfolio for the specified vault address"""
     try:
-        from portfolio_service import PortfolioService
+        from backend.services.portfolio_service import PortfolioService
         from utils.mongo_util import MongoUtil
         
         print(f"🔍 Checking portfolio for vault: {VAULT_ADDRESS}")

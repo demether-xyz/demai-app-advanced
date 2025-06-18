@@ -1,4 +1,4 @@
-- one-time > tool to agent add to aave, remove from aave on command
+- agent to deposit aave, remove
 - deploy
 - regular function to do something
 - add other cases

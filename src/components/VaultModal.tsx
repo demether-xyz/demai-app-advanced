@@ -5,7 +5,9 @@ import { ethers } from 'ethers'
 import { useVaultVerification } from '../hooks/useVaultVerification'
 import { useTokenBalancesAndApprovals } from '../hooks/useTokenBalancesAndApprovals'
 import { useVaultTokenBalances } from '../hooks/useVaultTokenBalances'
-import { getTokensForChain, ERC20_ABI, VAULT_FACTORY_ADDRESSES, BEACON_ADDRESS, BEACON_PROXY_CREATION_CODE } from '../config/tokens'
+import { useVaultAddress } from '../hooks/useVaultAddress'
+import { useEventEmitter } from '../hooks/useEvents'
+import { getTokensForChain, ERC20_ABI, VAULT_FACTORY_ADDRESSES } from '../config/tokens'
 
 
 
@@ -77,56 +79,7 @@ const VAULT_ABI = [
   },
 ] as const
 
-/**
- * Predicts the address of a vault using CREATE2 logic completely off-chain.
- * This matches your exact contract implementation.
- */
-const predictVaultAddressOffline = (vaultOwner: string, chainId: number): string => {
-  try {
-    const factoryAddress = VAULT_FACTORY_ADDRESSES[chainId]
-    if (!factoryAddress) {
-      console.error('Factory address not found for chain:', chainId)
-      return ''
-    }
 
-    // Use the same salt logic as the contract: bytes32(uint256(uint160(vaultOwner)))
-    const salt = ethers.zeroPadValue(vaultOwner, 32)
-
-    // 1. Prepare the initialization data for the Vault's `initialize` function
-    const vaultInterface = new ethers.Interface([
-      "function initialize(address factoryAdmin, address vaultOwner)"
-    ])
-    const initData = vaultInterface.encodeFunctionData("initialize", [
-      factoryAddress,
-      vaultOwner
-    ])
-
-    // 2. Encode the constructor arguments for the BeaconProxy
-    const constructorArgs = ethers.AbiCoder.defaultAbiCoder().encode(
-      ['address', 'bytes'],
-      [BEACON_ADDRESS, initData]
-    )
-
-    // 3. Construct the full bytecode for deployment
-    // Convert the hex string to Uint8Array first
-    const creationCodeBytes = new Uint8Array(
-      BEACON_PROXY_CREATION_CODE.slice(2).match(/.{2}/g)!.map(byte => parseInt(byte, 16))
-    )
-    const fullBytecode = ethers.concat([creationCodeBytes, constructorArgs])
-
-    // 4. Compute the CREATE2 address
-    const predictedAddress = ethers.getCreate2Address(
-      factoryAddress,
-      salt,
-      ethers.keccak256(fullBytecode)
-    )
-
-    return predictedAddress
-  } catch (error) {
-    console.error('Error calculating vault address:', error)
-    return ''
-  }
-}
 
 // Removed hardcoded tokens - now using dynamic token system
 
@@ -148,10 +101,11 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
     clearCache: clearVaultCache,
   } = useVaultVerification(isOpen)
 
-  // Use predicted address for display and approvals
-  // This is the address where the user's vault WILL BE deployed (deterministic)
-  // We check approvals against THIS address, not the factory
-  const vaultAddress = address ? predictVaultAddressOffline(address, selectedChain.id) : ''
+  // Use the vault address hook for address calculation
+  const { vaultAddress } = useVaultAddress(address, selectedChain.id)
+
+  // Event emitter for portfolio updates
+  const emit = useEventEmitter()
 
   // Get token balances and approvals for the predicted vault address (for deposits)
   // This checks: 1) User's token balances, 2) Approvals to spend tokens to the vault
@@ -296,11 +250,13 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
       refetchTokens()
       // Also refetch vault tokens to update vault balances
       refetchVaultTokens()
+      // Emit portfolio update event
+      emit('app.portfolio')
       // Reset form
       setAmount('')
       console.log('Deposit successful! Hash:', depositHash)
     }
-  }, [isDepositSuccess, refetchTokens, refetchVaultTokens, depositHash])
+  }, [isDepositSuccess, refetchTokens, refetchVaultTokens, emit, depositHash])
 
   // Handle successful withdrawal
   useEffect(() => {
@@ -309,11 +265,13 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
       refetchTokens()
       // Also refetch user tokens to update wallet balances
       refetchUserTokens()
+      // Emit portfolio update event
+      emit('app.portfolio')
       // Reset form
       setAmount('')
       console.log('Withdrawal successful! Hash:', withdrawHash)
     }
-  }, [isWithdrawSuccess, refetchTokens, refetchUserTokens, withdrawHash])
+  }, [isWithdrawSuccess, refetchTokens, refetchUserTokens, emit, withdrawHash])
 
   // State for showing success message
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)

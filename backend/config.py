@@ -62,14 +62,25 @@ SUPPORTED_TOKENS = {
     },
 }
 
-# RPC endpoints configuration
-RPC_ENDPOINTS = {
-    42161: os.getenv("ARBITRUM_RPC_URL", "https://arb1.arbitrum.io/rpc"),  # Arbitrum official RPC
+# Chain configuration
+CHAIN_CONFIG = {
+    42161: {
+        "name": "Arbitrum",
+        "rpc_url": os.getenv("ARBITRUM_RPC_URL", "https://arb1.arbitrum.io/rpc"),
+        "native_currency": {"symbol": "ETH", "name": "Ethereum", "decimals": 18, "coingeckoId": "ethereum"}
+    }
 }
 
-# Native currencies for each chain (for ETH balance)
+# RPC endpoints configuration (derived from CHAIN_CONFIG)
+RPC_ENDPOINTS = {
+    chain_id: config["rpc_url"] 
+    for chain_id, config in CHAIN_CONFIG.items()
+}
+
+# Native currencies for each chain (derived from CHAIN_CONFIG)
 NATIVE_CURRENCIES = {
-    42161: {"symbol": "ETH", "name": "Ethereum", "decimals": 18, "coingeckoId": "ethereum"},
+    chain_id: config["native_currency"] 
+    for chain_id, config in CHAIN_CONFIG.items()
 }
 
 # ERC20 ABI for balance calls

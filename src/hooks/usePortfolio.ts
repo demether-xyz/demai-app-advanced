@@ -17,7 +17,7 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
   const shouldQueryPortfolio = useAppStore((state) => state.shouldQueryPortfolio)
 
   // Listen for portfolio update events
-  const portfolioUpdateEvent = useEvent('app.portfolio.update')
+  const portfolioUpdateEvent = useEvent('app.portfolio')
 
   // Get current portfolio data from store
   const portfolioData = vaultAddress ? getPortfolioData(vaultAddress) : undefined

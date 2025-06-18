@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { sendMessageToDemai } from '../services/demaiApi'
 import { useOpenWindow } from '../hooks/useEvents'
+import { useAccount, useChainId } from 'wagmi'
+import { useVaultAddress } from '../hooks/useVaultAddress'
 
 interface ChatMessage {
   id: number
@@ -25,6 +27,11 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isSubmittingRef = useRef(false)
+  
+  // Add wallet and chain info for vault address calculation
+  const { address } = useAccount()
+  const chainId = useChainId()
+  const { vaultAddress } = useVaultAddress(address, chainId)
   
   // Add openWindow hook for triggering window events
   const openWindow = useOpenWindow()
@@ -179,7 +186,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
 
     try {
       // Try to get response from API first
-      const response = await sendMessageToDemai(messageText)
+      const response = await sendMessageToDemai(messageText, address, vaultAddress)
       
       let aiResponseText: string
       
@@ -272,7 +279,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
     // Process the message same as before
     setTimeout(async () => {
       try {
-        const response = await sendMessageToDemai(messageText)
+        const response = await sendMessageToDemai(messageText, address, vaultAddress)
         
         let aiResponseText: string
         

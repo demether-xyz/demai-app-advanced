@@ -11,6 +11,13 @@ from setup import setup
 from contextlib import asynccontextmanager
 from pancaik.core.config import get_config
 
+# Auth message that must match frontend DEMAI_AUTH_MESSAGE
+DEMAI_AUTH_MESSAGE = """Welcome to demAI!
+
+This signature will be used to authenticate your interactions with the demAI platform.
+
+This signature will not trigger any blockchain transactions or grant any token approvals."""
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic here
@@ -40,14 +47,14 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
-    wallet_address: str
+    wallet_address: str  # Wallet address for authentication
+    vault_address: Optional[str] = None  # Vault address for portfolio context
     signature: str
-    auth_message: str
 
 class PortfolioRequest(BaseModel):
     vault_address: str
+    wallet_address: str  # Wallet address for authentication
     signature: str
-    auth_message: str
 
 def verify_signature(message: str, signature: str, address: str) -> bool:
     try:
@@ -64,38 +71,37 @@ async def read_root():
 
 @app.post("/chat/")
 async def chat_endpoint(request: ChatRequest):
-    # TODO: Re-enable authentication for production
-    # Verify the signature
-    # is_valid = verify_signature(
-    #     message=request.auth_message,
-    #     signature=request.signature,
-    #     address=request.wallet_address
-    # )
-    # 
-    # if not is_valid:
-    #     raise HTTPException(status_code=401, detail="Invalid signature or wallet address")
+    # Verify the signature with the auth message from frontend
+    is_valid = verify_signature(
+        message=DEMAI_AUTH_MESSAGE,
+        signature=request.signature,
+        address=request.wallet_address
+    )
+    
+    if not is_valid:
+        raise HTTPException(status_code=401, detail="Invalid signature or wallet address")
 
-    # Run the chatbot with the user's message and wallet address
+    # Run the chatbot with the user's message and vault address
     # The assistant.py has hardcoded window list, no need to pass from frontend
     response = await run_chatbot(
         message=request.message, 
-        chat_id=request.wallet_address
+        chat_id=request.wallet_address,  # Use wallet address for chat history consistency
+        vault_address=request.vault_address
     )
     return {"response": response}
 
 @app.post("/portfolio/")
 async def portfolio_endpoint(request: PortfolioRequest):
     """Get portfolio summary for a vault address"""
-    # TODO: Re-enable authentication for production
-    # Verify the signature
-    # is_valid = verify_signature(
-    #     message=request.auth_message,
-    #     signature=request.signature,
-    #     address=request.vault_address
-    # )
-    # 
-    # if not is_valid:
-    #     raise HTTPException(status_code=401, detail="Invalid signature or vault address")
+    # Verify the signature with the same auth message as chat endpoint
+    is_valid = verify_signature(
+        message=DEMAI_AUTH_MESSAGE,
+        signature=request.signature,
+        address=request.wallet_address  # Use wallet address for authentication
+    )
+    
+    if not is_valid:
+        raise HTTPException(status_code=401, detail="Invalid signature or wallet address")
     
     try:
         # Get database from pancaik config

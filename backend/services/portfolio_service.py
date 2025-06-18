@@ -2,9 +2,10 @@ from typing import Dict, List, Optional, Any, TYPE_CHECKING, Union
 from decimal import Decimal
 import logging
 import asyncio
+import datetime
 from utils.coingecko_util import CoinGeckoUtil
 from utils.mongo_util import MongoUtil
-from config import SUPPORTED_TOKENS, RPC_ENDPOINTS, NATIVE_CURRENCIES, ERC20_ABI
+from config import SUPPORTED_TOKENS, RPC_ENDPOINTS, NATIVE_CURRENCIES, ERC20_ABI, CHAIN_CONFIG
 from strategies.strategy_config import STRATEGY_BALANCE_CHECKERS
 
 if TYPE_CHECKING:
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 class PortfolioService:
     """Service for fetching portfolio balances and calculating total value"""
     
-    def __init__(self, db_or_mongo_util: Optional[Union["Database", MongoUtil]] = None):
+    def __init__(self, db_or_mongo_util: Optional[Union["Database", MongoUtil]] = None, cache_ttl_seconds: int = 60):
         # Handle both database and MongoUtil for backward compatibility
         if db_or_mongo_util is not None and hasattr(db_or_mongo_util, 'db'):  # It's a MongoUtil
             self.mongo_util = db_or_mongo_util
@@ -26,9 +27,14 @@ class PortfolioService:
             self.mongo_util = None
             self.db = db_or_mongo_util
             
+        self.cache_ttl = datetime.timedelta(seconds=cache_ttl_seconds)
         self.coingecko = CoinGeckoUtil(self.mongo_util if self.mongo_util is not None else self.db)
         self.web3_instances = {}
         self.Web3 = None
+        
+        # In-memory cache for portfolio data
+        self._memory_cache = {}
+        
         self._import_web3()
         self._initialize_web3_connections()
     
@@ -58,6 +64,16 @@ class PortfolioService:
             except Exception as e:
                 logger.error(f"Error connecting to chain {chain_id}: {e}")
     
+    def clear_memory_cache(self, vault_address: Optional[str] = None):
+        """Clear memory cache for a specific vault or all vaults"""
+        if vault_address:
+            if vault_address in self._memory_cache:
+                del self._memory_cache[vault_address]
+                logger.info(f"Cleared memory cache for vault {vault_address}")
+        else:
+            self._memory_cache.clear()
+            logger.info("Cleared all memory cache")
+    
     async def get_portfolio_summary(self, vault_address: str) -> Dict[str, Any]:
         """
         Get complete portfolio summary for a vault address including balances and USD values
@@ -77,6 +93,37 @@ class PortfolioService:
         try:
             # Normalize vault address
             vault_address = self.Web3.to_checksum_address(vault_address)
+            
+            # Check in-memory cache first
+            if vault_address in self._memory_cache:
+                cached_entry = self._memory_cache[vault_address]
+                is_stale = datetime.datetime.utcnow() - cached_entry['timestamp'] > self.cache_ttl
+                if not is_stale:
+                    logger.info(f"Returning in-memory cached portfolio for vault {vault_address}")
+                    return cached_entry['data']
+                else:
+                    # Remove stale cache entry
+                    del self._memory_cache[vault_address]
+            
+            # Check database cache if no fresh in-memory cache
+            if self.db is not None:
+                cache_collection = self.db.portfolio_cache
+                cached_data = await cache_collection.find_one({"vault_address": vault_address})
+
+                if cached_data and 'timestamp' in cached_data:
+                    is_stale = datetime.datetime.utcnow() - cached_data['timestamp'] > self.cache_ttl
+                    if not is_stale:
+                        logger.info(f"Returning database cached portfolio for vault {vault_address}")
+                        cached_data.pop('_id', None)
+                        cached_data.pop('timestamp', None)
+                        
+                        # Store in memory cache for next time
+                        self._memory_cache[vault_address] = {
+                            'data': cached_data,
+                            'timestamp': datetime.datetime.utcnow()
+                        }
+                        
+                        return cached_data
             
             # Get balances for all tokens across all chains concurrently
             token_balances_task = self._get_all_token_balances(vault_address)
@@ -167,7 +214,7 @@ class PortfolioService:
                 h["strategy"] for h in strategy_holdings
             ))
             
-            return {
+            portfolio_summary = {
                 "vault_address": vault_address,
                 "total_value_usd": total_value,
                 "holdings": all_holdings,
@@ -176,6 +223,31 @@ class PortfolioService:
                 "strategy_count": len(strategy_holdings),
                 "active_strategies": active_strategies
             }
+
+            # Store in memory cache first
+            self._memory_cache[vault_address] = {
+                'data': portfolio_summary.copy(),
+                'timestamp': datetime.datetime.utcnow()
+            }
+            logger.info(f"Cached portfolio in memory for vault {vault_address}")
+
+            # Also store in database cache if available
+            if self.db is not None:
+                try:
+                    cache_collection = self.db.portfolio_cache
+                    data_to_cache = portfolio_summary.copy()
+                    data_to_cache['timestamp'] = datetime.datetime.utcnow()
+                    
+                    await cache_collection.update_one(
+                        {"vault_address": vault_address},
+                        {"$set": data_to_cache},
+                        upsert=True
+                    )
+                    logger.info(f"Cached portfolio in database for vault {vault_address}")
+                except Exception as e:
+                    logger.error(f"Error caching portfolio data in database for vault {vault_address}: {e}")
+            
+            return portfolio_summary
             
         except Exception as e:
             logger.error(f"Error getting portfolio summary for vault {vault_address}: {e}")
@@ -287,24 +359,24 @@ class PortfolioService:
         # Create tasks for each strategy balance checker
         for strategy_name, balance_checker in STRATEGY_BALANCE_CHECKERS.items():
             task = balance_checker(self.web3_instances, vault_address, SUPPORTED_TOKENS)
-            tasks.append((task, strategy_name))
+            tasks.append(task) # Directly append the coroutine
         
         logger.info(f"Checking strategy balances for {len(tasks)} strategies")
         
         # Execute all strategy balance checks concurrently
-        results = await asyncio.gather(*[task for task, _ in tasks], return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         
         all_strategy_balances = []
         for i, result in enumerate(results):
+            strategy_name = list(STRATEGY_BALANCE_CHECKERS.keys())[i]
             if isinstance(result, Exception):
-                _, strategy_name = tasks[i]
                 logger.error(f"Error getting {strategy_name} strategy balances: {result}")
                 continue
                 
             # Result should be a list of strategy balance dictionaries
             if isinstance(result, list):
                 all_strategy_balances.extend(result)
-                logger.info(f"Found {len(result)} strategy balances from {tasks[i][1]}")
+                logger.info(f"Found {len(result)} strategy balances from {strategy_name}")
         
         logger.info(f"Retrieved total of {len(all_strategy_balances)} strategy balances")
         return all_strategy_balances
@@ -372,3 +444,110 @@ class PortfolioService:
         except Exception as e:
             logger.error(f"Error getting native balance on chain {chain_id}: {e}")
             return None
+
+    async def get_portfolio_for_llm(self, vault_address: str) -> Dict[str, Any]:
+        """
+        Get portfolio data organized for LLM consumption - structured by chains, strategies, tokens, amounts
+        """
+        portfolio_summary = await self.get_portfolio_summary(vault_address)
+        
+        if portfolio_summary.get('error'):
+            return {"error": portfolio_summary['error']}
+        
+        # Use actual chain configuration from config.py
+        chain_names = {
+            chain_id: config["name"] 
+            for chain_id, config in CHAIN_CONFIG.items()
+        }
+        
+        # Organize data by chains and strategies
+        result = {
+            "total_value_usd": portfolio_summary.get('total_value_usd', 0),
+            "chains": {},
+            "strategies": {},
+            "summary": {
+                "active_chains": [],
+                "active_strategies": [],
+                "total_tokens": 0
+            }
+        }
+        
+        holdings = portfolio_summary.get('holdings', [])
+        
+        # Process each holding
+        for holding in holdings:
+            chain_id = holding.get('chain_id')
+            chain_name = chain_names.get(chain_id, f'Chain {chain_id}')
+            symbol = holding.get('symbol', 'Unknown')
+            balance = holding.get('balance', 0)
+            value_usd = holding.get('value_usd', 0)
+            holding_type = holding.get('type', 'token')
+            
+            # Initialize chain if not exists
+            if chain_name not in result["chains"]:
+                result["chains"][chain_name] = {
+                    "chain_id": chain_id,
+                    "total_value_usd": 0,
+                    "tokens": {},
+                    "strategies": {}
+                }
+            
+            # Add to chain total
+            result["chains"][chain_name]["total_value_usd"] += value_usd
+            
+            if holding_type == "token":
+                # Regular token holding
+                result["chains"][chain_name]["tokens"][symbol] = {
+                    "balance": balance,
+                    "value_usd": value_usd
+                }
+            elif holding_type == "strategy":
+                # Strategy holding
+                strategy = holding.get('strategy', 'Unknown')
+                protocol = holding.get('protocol', 'Unknown')
+                strategy_key = f"{protocol}_{strategy}"
+                
+                # Initialize strategy globally if not exists
+                if strategy_key not in result["strategies"]:
+                    result["strategies"][strategy_key] = {
+                        "protocol": protocol,
+                        "strategy": strategy,
+                        "total_value_usd": 0,
+                        "positions": {}
+                    }
+                
+                # Add to global strategy
+                position_key = f"{chain_name}_{symbol}"
+                result["strategies"][strategy_key]["positions"][position_key] = {
+                    "chain": chain_name,
+                    "token": symbol,
+                    "balance": balance,
+                    "value_usd": value_usd
+                }
+                result["strategies"][strategy_key]["total_value_usd"] += value_usd
+                
+                # Add to chain's strategy section
+                if strategy_key not in result["chains"][chain_name]["strategies"]:
+                    result["chains"][chain_name]["strategies"][strategy_key] = {
+                        "protocol": protocol,
+                        "strategy": strategy,
+                        "tokens": {}
+                    }
+                
+                result["chains"][chain_name]["strategies"][strategy_key]["tokens"][symbol] = {
+                    "balance": balance,
+                    "value_usd": value_usd
+                }
+        
+        # Build summary
+        result["summary"]["active_chains"] = list(result["chains"].keys())
+        result["summary"]["active_strategies"] = [
+            f"{data['protocol']} {data['strategy']}" 
+            for data in result["strategies"].values()
+        ]
+        result["summary"]["total_tokens"] = sum(
+            len(chain_data["tokens"]) 
+            for chain_data in result["chains"].values()
+        )
+        
+        return result

@@ -1,14 +1,9 @@
 // src/demai/services/demaiApi.ts
+import { getStoredAuthData } from '../hooks/useAuth'
 
 // Define the base URL for the Demai API
 // Use an environment variable if available, otherwise default to localhost for development
 const API_BASE_URL = process.env.NEXT_PUBLIC_DEMAI_API_URL || 'http://localhost:5050'
-
-interface AuthData {
-  signature: string
-  message: string
-  address: string
-}
 
 interface ApiResponse {
   success: boolean
@@ -45,33 +40,22 @@ interface PortfolioResponse {
   error?: string
 }
 
-// Function to get stored authentication data from localStorage
-export const getStoredAuthData = (): AuthData | null => {
-  try {
-    const data = localStorage.getItem('demai_auth_data')
-    return data ? JSON.parse(data) : null
-  } catch {
-    return null
-  }
-}
-
 // Function to store authentication data to localStorage
-export const storeAuthData = (authData: AuthData): void => {
+export const storeAuthData = (authData: { signature: string; message: string; address: string }): void => {
   localStorage.setItem('demai_auth_data', JSON.stringify(authData))
 }
 
 // Function to send a message to the AI chat endpoint
-export const sendMessageToDemai = async (message: string): Promise<ApiResponse> => {
+export const sendMessageToDemai = async (message: string, walletAddress?: string, vaultAddress?: string): Promise<ApiResponse> => {
   try {
-    // TODO: Re-enable authentication for production
-    // Get authentication data
-    // const authData = getStoredAuthData()
-    // if (!authData) {
-    //   return {
-    //     success: false,
-    //     error: 'No authentication data found. Please connect your wallet and sign the message.',
-    //   }
-    // }
+    // Get authentication data from localStorage
+    const authData = getStoredAuthData()
+    if (!authData) {
+      return {
+        success: false,
+        error: 'No authentication data found. Please connect your wallet and sign the message.',
+      }
+    }
 
     // Construct the full endpoint URL
     const endpointUrl = `${API_BASE_URL}/chat/`
@@ -84,9 +68,9 @@ export const sendMessageToDemai = async (message: string): Promise<ApiResponse> 
         },
         body: JSON.stringify({
           message,
-          wallet_address: 'dev-address', // Dummy address for development
-          signature: 'dev-signature', // Dummy signature for development
-          auth_message: 'dev-message', // Dummy auth message for development
+          wallet_address: authData.address, // Use authenticated wallet address
+          vault_address: vaultAddress || '', // Use actual vault address for portfolio
+          signature: authData.signature, // Use real signature from auth
         }),
       })
 
@@ -165,15 +149,14 @@ export const sendMessageToDemai = async (message: string): Promise<ApiResponse> 
 // Function to get portfolio data
 export const getPortfolioData = async (vaultAddress: string): Promise<PortfolioResponse> => {
   try {
-    // TODO: Re-enable authentication for production
-    // Get authentication data
-    // const authData = getStoredAuthData()
-    // if (!authData) {
-    //   return {
-    //     success: false,
-    //     error: 'No authentication data found. Please connect your wallet and sign the message.',
-    //   }
-    // }
+    // Get authentication data from localStorage
+    const authData = getStoredAuthData()
+    if (!authData) {
+      return {
+        success: false,
+        error: 'No authentication data found. Please connect your wallet and sign the message.',
+      }
+    }
 
     // Construct the full endpoint URL
     const endpointUrl = `${API_BASE_URL}/portfolio/`
@@ -186,8 +169,8 @@ export const getPortfolioData = async (vaultAddress: string): Promise<PortfolioR
         },
         body: JSON.stringify({
           vault_address: vaultAddress,
-          signature: 'dev-signature', // Dummy signature for development
-          auth_message: 'dev-message', // Dummy auth message for development
+          wallet_address: authData.address, // Use authenticated wallet address
+          signature: authData.signature, // Use real signature from auth
         }),
       })
 

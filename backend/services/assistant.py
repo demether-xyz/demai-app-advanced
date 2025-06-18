@@ -6,12 +6,17 @@ from langchain.chains import ConversationChain
 from dotenv import load_dotenv
 from utils.prompt_utils import get_prompt
 from utils.json_parser import extract_json_content
-from config import logger
+from config import logger, SUPPORTED_TOKENS, CHAIN_CONFIG, RPC_ENDPOINTS, NATIVE_CURRENCIES
 from pancaik.core.config import get_config
 from pancaik.utils.ai_router import get_agent_completion, create_langchain_tool, get_completion
+
+from strategies.aave_strategy import supply_token_to_aave, withdraw_token_from_aave
 import json
+from web3 import Web3
 
 load_dotenv()
+
+
 
 # Available window IDs from the frontend WireframeOverlay component
 AVAILABLE_WINDOW_IDS = [
@@ -182,36 +187,7 @@ def format_chat_history_structured(chat_history):
     
     return formatted_messages
 
-def get_aave_usdc_yield(network: str = "ethereum") -> str:
-    """Get current AAVE lending yield for USDC. This is a dummy implementation.
-    
-    Args:
-        network: The network to check (ethereum, polygon, arbitrum, etc.)
-        
-    Returns:
-        A string describing the current AAVE USDC yield
-    """
-    # Dummy yield data - in real implementation this would call AAVE API
-    yield_data = {
-        "ethereum": "3.42% APY",
-        "polygon": "4.18% APY", 
-        "arbitrum": "3.95% APY",
-        "avalanche": "3.78% APY",
-        "optimism": "3.63% APY"
-    }
-    
-    # Get yield for network or default
-    apy = yield_data.get(network.lower(), "3.50% APY")
-    result = f"AAVE USDC lending yield on {network}: {apy}"
-    
-    logger.info(f"AAVE USDC yield requested for {network}: {apy}")
-    return result
 
-# Create LangChain tool from the AAVE yield function
-aave_yield_tool = create_langchain_tool(
-    get_aave_usdc_yield,
-    description="Get current AAVE lending yield for USDC on various networks"
-)
 
 async def run_chatbot(message: str, chat_id: str, available_windows: list = None, vault_address: str = None) -> str:
     """Run chatbot with window opening capabilities using AI router agent mode"""
@@ -224,7 +200,6 @@ async def run_chatbot(message: str, chat_id: str, available_windows: list = None
         
         # Initialize portfolio service if vault address is provided
         portfolio_llm_data = None
-        formatted_portfolio = None
         if vault_address and db is not None:
             try:
                 from services.portfolio_service import PortfolioService
@@ -234,7 +209,6 @@ async def run_chatbot(message: str, chat_id: str, available_windows: list = None
             except Exception as e:
                 logger.error(f"Error getting portfolio data for vault {vault_address}: {e}")
                 portfolio_llm_data = None
-                formatted_portfolio = None
         
         # Fetch chat history (we'll save messages at the end)
         chat_history = await _fetch_chat_history(db, chat_id)
@@ -242,6 +216,34 @@ async def run_chatbot(message: str, chat_id: str, available_windows: list = None
         # Use hardcoded windows or fallback to provided ones
         windows_to_use = AVAILABLE_WINDOW_IDS
         
+        # Initialize tools list
+        tools_to_use = []
+        
+        # Create wrapper function for supplying tokens to Aave with vault_address
+        def supply_token_to_aave_with_vault(token_symbol: str, amount: float, chain_name: str) -> str:
+            """Wrapper function that includes the vault_address from the session context."""
+            return supply_token_to_aave(token_symbol, amount, chain_name, vault_address)
+        
+        # Create wrapper function for withdrawing tokens from Aave with vault_address
+        def withdraw_token_from_aave_with_vault(token_symbol: str, amount: float, chain_name: str) -> str:
+            """Wrapper function that includes the vault_address from the session context."""
+            return withdraw_token_from_aave(token_symbol, amount, chain_name, vault_address)
+        
+        # Create LangChain tool for supplying tokens to Aave
+        supply_to_aave_tool = create_langchain_tool(
+            supply_token_to_aave_with_vault,
+            description="Supply a specified amount of a token (e.g., USDC, WBTC) to Aave on a given chain (e.g., Arbitrum). Requires token symbol, amount, and chain name. The vault address is provided by the session. Example: 'supply 100 USDC to Aave on Arbitrum'."
+        )
+        
+        # Create LangChain tool for withdrawing tokens from Aave
+        withdraw_from_aave_tool = create_langchain_tool(
+            withdraw_token_from_aave_with_vault,
+            description="Withdraw a specified amount of a token (e.g., USDC, WBTC) from Aave on a given chain (e.g., Arbitrum). Requires token symbol, amount, and chain name. The vault address is provided by the session. Example: 'withdraw 50 USDC from Aave on Arbitrum'."
+        )
+        
+        tools_to_use.append(supply_to_aave_tool)
+        tools_to_use.append(withdraw_from_aave_tool)
+
         # Create output format with available windows
         output_format = """
 OUTPUT IN JSON: Strict JSON format, no additional text.
@@ -289,7 +291,8 @@ You can open multiple windows at once to show related information.
         system_message = f"""{system_prompt}
 
 AVAILABLE TOOLS:
-- get_aave_usdc_yield: Get current AAVE lending yield for USDC on various networks (ethereum, polygon, arbitrum, avalanche, optimism)
+- supply_token_to_aave: Supply a specified amount of a token (e.g., USDC, WBTC) to Aave on a given chain (e.g., Arbitrum). Requires token symbol, amount, and chain name. The vault address is provided by the session. Example: 'supply 100 USDC to Aave on Arbitrum'
+- withdraw_token_from_aave: Withdraw a specified amount of a token (e.g., USDC, WBTC) from Aave on a given chain (e.g., Arbitrum). Requires token symbol, amount, and chain name. The vault address is provided by the session. Example: 'withdraw 50 USDC from Aave on Arbitrum'
 
 Use the available tools to help answer user questions about DeFi yields when relevant."""
         
@@ -298,7 +301,7 @@ Use the available tools to help answer user questions about DeFi yields when rel
             prompt=prompt,
             model_id="google/gemini-2.5-flash-preview-05-20:thinking",
             agent_mode=True,
-            tools=[aave_yield_tool],
+            tools=tools_to_use,
             system_message=system_message,
             use_openrouter=True,
             temperature=0.7,

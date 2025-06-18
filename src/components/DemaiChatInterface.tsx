@@ -22,11 +22,13 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
   const [isCollapsing, setIsCollapsing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [shouldMaintainFocus, setShouldMaintainFocus] = useState(false)
+  const [isUserSelecting, setIsUserSelecting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const focusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isSubmittingRef = useRef(false)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   
   // Add wallet and chain info for vault address calculation
   const { address } = useAccount()
@@ -50,11 +52,16 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
 
   // Robust focus management using useCallback for stable reference
   const maintainInputFocus = useCallback(() => {
-    if (!inputRef.current || !isExpanded || isLoading) return false
+    if (!inputRef.current || !isExpanded || isLoading || isUserSelecting) return false
     
     try {
       const activeElement = document.activeElement
       const inputElement = inputRef.current
+      
+      // Don't steal focus if user is selecting text in messages
+      if (messagesContainerRef.current?.contains(activeElement as Node)) {
+        return false
+      }
       
       // Only focus if not already focused and should maintain focus
       if (activeElement !== inputElement && shouldMaintainFocus) {
@@ -70,51 +77,120 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
       console.debug('Focus attempt failed:', error)
       return false
     }
-  }, [isExpanded, isLoading, shouldMaintainFocus])
+  }, [isExpanded, isLoading, shouldMaintainFocus, isUserSelecting])
 
-  // Focus guard effect - continuously monitors and maintains focus
+  // Focus guard effect - much less aggressive, only on specific triggers
   useEffect(() => {
-    if (!isExpanded || !shouldMaintainFocus) return
+    if (!isExpanded || !shouldMaintainFocus || isUserSelecting) return
 
-    const focusGuard = () => {
-      if (maintainInputFocus()) {
-        console.debug('Focus restored by guard')
+    // Only restore focus on very specific triggers, not continuously
+    const handleKeyboardActivity = (e: KeyboardEvent) => {
+      // Only restore focus if user is pressing typing keys (not selection keys)
+      if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
+        if (!isUserSelecting && document.activeElement !== inputRef.current) {
+          maintainInputFocus()
+        }
       }
     }
 
-    // Set up focus monitoring
-    const focusInterval = setInterval(focusGuard, 100)
-    
-    // Also listen for focus/blur events on the document
-    const handleFocusChange = () => {
-      if (shouldMaintainFocus) {
-        // Use requestAnimationFrame to ensure this runs after any other focus changes
-        requestAnimationFrame(focusGuard)
-      }
-    }
-
-    document.addEventListener('focusin', handleFocusChange)
-    document.addEventListener('focusout', handleFocusChange)
+    // Only listen for keyboard activity to restore focus
+    document.addEventListener('keydown', handleKeyboardActivity)
 
     return () => {
-      clearInterval(focusInterval)
-      document.removeEventListener('focusin', handleFocusChange)
-      document.removeEventListener('focusout', handleFocusChange)
+      document.removeEventListener('keydown', handleKeyboardActivity)
     }
-  }, [isExpanded, shouldMaintainFocus, maintainInputFocus])
+  }, [isExpanded, shouldMaintainFocus, maintainInputFocus, isUserSelecting])
 
-  // Initialize focus when expanded
+  // Text selection detection effect - comprehensive selection protection
+  useEffect(() => {
+    if (!isExpanded || !messagesContainerRef.current) return
+
+    const messagesContainer = messagesContainerRef.current
+    let selectionTimeout: NodeJS.Timeout | null = null
+
+    const startSelectionMode = () => {
+      setIsUserSelecting(true)
+      // Clear any existing timeout
+      if (selectionTimeout) {
+        clearTimeout(selectionTimeout)
+      }
+    }
+
+    const endSelectionMode = () => {
+      // Much longer delay to ensure selection operations are completely finished
+      selectionTimeout = setTimeout(() => {
+        setIsUserSelecting(false)
+      }, 500)
+    }
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (messagesContainer.contains(e.target as Node)) {
+        startSelectionMode()
+      }
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // If mouse is being dragged over messages, user is likely selecting
+      if (e.buttons === 1 && messagesContainer.contains(e.target as Node)) {
+        startSelectionMode()
+      }
+    }
+
+    const handleMouseUp = () => {
+      endSelectionMode()
+    }
+
+    const handleSelectionChange = () => {
+      const selection = window.getSelection()
+      if (selection && !selection.isCollapsed) {
+        // There's an active text selection
+        startSelectionMode()
+      } else {
+        endSelectionMode()
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Selection-related keys
+      if (e.key === 'Shift' || e.ctrlKey || e.metaKey || 
+          (e.shiftKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key))) {
+        startSelectionMode()
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        endSelectionMode()
+      }
+    }
+
+    // Listen for various selection-related events
+    messagesContainer.addEventListener('mousedown', handleMouseDown)
+    messagesContainer.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    document.addEventListener('selectionchange', handleSelectionChange)
+    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('keyup', handleKeyUp)
+
+    return () => {
+      if (selectionTimeout) {
+        clearTimeout(selectionTimeout)
+      }
+      messagesContainer.removeEventListener('mousedown', handleMouseDown)
+      messagesContainer.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('selectionchange', handleSelectionChange)
+      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [isExpanded])
+
+  // Initialize focus when expanded - but only enable focus maintenance, don't force focus
   useEffect(() => {
     if (isExpanded) {
+      // Enable focus maintenance but don't force focus immediately
+      // This allows users to start selecting text right away
       setShouldMaintainFocus(true)
-      // Clear any existing timeout
-      if (focusTimeoutRef.current) {
-        clearTimeout(focusTimeoutRef.current)
-      }
-      // Initial focus with delay to ensure DOM is ready
-      focusTimeoutRef.current = setTimeout(() => {
-        maintainInputFocus()
-      }, 50)
     } else {
       setShouldMaintainFocus(false)
       if (focusTimeoutRef.current) {
@@ -127,7 +203,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
         clearTimeout(focusTimeoutRef.current)
       }
     }
-  }, [isExpanded, maintainInputFocus])
+  }, [isExpanded])
 
   // Handle click outside to collapse
   useEffect(() => {
@@ -371,8 +447,17 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
   const handleInputClick = () => {
     if (!isExpanded) {
       setIsExpanded(true)
+      // Only auto-focus when expanding, user clicked the input intentionally
+      setTimeout(() => {
+        if (inputRef.current && !isUserSelecting) {
+          inputRef.current.focus()
+        }
+      }, 100)
     }
-    // Focus will be handled by the useEffect when isExpanded changes
+    // If already expanded, user clicked input directly so they want to type
+    if (isExpanded && !isUserSelecting) {
+      setShouldMaintainFocus(true)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -441,23 +526,23 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
             </div>
 
             {/* Content Area */}
-            <div className="chat-scrollbar flex-1 space-y-2 overflow-y-auto px-6 pb-6 font-mono">
+            <div ref={messagesContainerRef} className="chat-scrollbar flex-1 space-y-2 overflow-y-auto px-6 pb-6 font-mono">
               {messages.length === 0 ? (
                 /* Terminal-like welcome screen */
                 <div className="mt-4 space-y-4 font-mono">
                   <div className="text-sm text-green-400">
-                    <div className="mb-2">$ demai --init</div>
-                    <div className="ml-4 text-white/60">Initializing DeFi yield optimization assistant...</div>
-                    <div className="ml-4 text-white/60">Loading market data...</div>
-                    <div className="ml-4 text-white/60">Ready for queries.</div>
+                    <div className="mb-2 select-none">$ demai --init</div>
+                    <div className="ml-4 text-white/60 select-text">Initializing DeFi yield optimization assistant...</div>
+                    <div className="ml-4 text-white/60 select-text">Loading market data...</div>
+                    <div className="ml-4 text-white/60 select-text">Ready for queries.</div>
                   </div>
                   <div className="mt-6 text-sm text-white/80">
-                    <div className="mb-2 text-blue-400">Available commands:</div>
+                    <div className="mb-2 text-blue-400 select-none">Available commands:</div>
                     <div className="ml-4 space-y-1 text-white/60">
-                      <div>• analyze [token] - Analyze yield opportunities</div>
-                      <div>• portfolio - Review your current positions</div>
-                      <div>• risks [protocol] - Assess protocol risks</div>
-                      <div>• optimize - Get yield optimization suggestions</div>
+                      <div className="select-text">• analyze [token] - Analyze yield opportunities</div>
+                      <div className="select-text">• portfolio - Review your current positions</div>
+                      <div className="select-text">• risks [protocol] - Assess protocol risks</div>
+                      <div className="select-text">• optimize - Get yield optimization suggestions</div>
                     </div>
                   </div>
                 </div>
@@ -468,18 +553,18 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
                     <div key={message.id} className="group">
                       {message.sender === 'user' ? (
                         <div className="flex items-start space-x-2">
-                          <span className="flex-shrink-0 text-green-400">user@demai:~$</span>
-                          <div className="flex-1 break-words whitespace-pre-wrap text-white/90">{message.text}</div>
+                          <span className="flex-shrink-0 text-green-400 select-none">user@demai:~$</span>
+                          <div className="flex-1 break-words whitespace-pre-wrap text-white/90 select-text">{message.text}</div>
                         </div>
                       ) : (
                         <div className="mt-2 mb-4">
                           <div className="mb-1 flex items-center space-x-2">
-                            <span className="flex-shrink-0 text-blue-400">demai@assistant:</span>
-                            <span className="text-xs text-white/40">
+                            <span className="flex-shrink-0 text-blue-400 select-none">demai@assistant:</span>
+                            <span className="text-xs text-white/40 select-none">
                               {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
-                          <div className="ml-6 leading-relaxed break-words whitespace-pre-wrap text-white/80">{message.text}</div>
+                          <div className="ml-6 leading-relaxed break-words whitespace-pre-wrap text-white/80 select-text">{message.text}</div>
                         </div>
                       )}
                     </div>
@@ -532,15 +617,16 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
                   onKeyDown={handleKeyDown}
                   onClick={handleInputClick}
                   onBlur={(e) => {
-                    // Only prevent automatic focus restoration if user is clicking outside the chat
-                    // The focus guard will handle restoration if needed
+                    // Disable focus maintenance when user tabs away or clicks outside chat
                     if (!chatContainerRef.current?.contains(e.relatedTarget as Node)) {
                       setShouldMaintainFocus(false)
                     }
                   }}
                   onFocus={() => {
-                    // Re-enable focus maintenance when user manually focuses
-                    setShouldMaintainFocus(true)
+                    // Re-enable focus maintenance when user manually focuses the input
+                    if (!isUserSelecting) {
+                      setShouldMaintainFocus(true)
+                    }
                   }}
                   autoFocus={isExpanded}
                   placeholder={messages.length === 0 ? "start here optimizing your yield" : ""}

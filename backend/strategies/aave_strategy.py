@@ -6,6 +6,8 @@ from web3 import Web3
 from eth_abi import encode
 import asyncio
 import logging
+import json
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -281,4 +283,166 @@ async def withdraw_from_aave(
         call_data=call_data,
         approvals=approvals,
         gas_limit=gas_limit
-    ) 
+    )
+
+def supply_token_to_aave(
+    token_symbol: str,
+    amount: float,
+    chain_name: str,
+    vault_address: str
+) -> str:
+    """
+    Supplies a given token to Aave V3 on a specified chain.
+    This is a synchronous function for LangChain compatibility.
+
+    Args:
+        token_symbol: The symbol of the token to supply (e.g., "USDC", "WBTC").
+        amount: The amount of the token to supply (human-readable format, e.g., 100.5).
+        chain_name: The name of the blockchain network (e.g., "Arbitrum").
+        vault_address: The address of the vault initiating the supply.
+
+    Returns:
+        A JSON string indicating the success or failure of the operation,
+        including the transaction hash if successful.
+    """
+    try:
+        # Import here to avoid circular imports
+        from config import SUPPORTED_TOKENS, CHAIN_CONFIG, RPC_ENDPOINTS
+        from strategies.strategies import StrategyExecutor
+        
+        # Get private key from environment variable
+        PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+        if not PRIVATE_KEY:
+            return json.dumps({"status": "error", "message": "PRIVATE_KEY environment variable not set"})
+        
+        # Find chain_id from chain_name
+        chain_id = None
+        for c_id, config in CHAIN_CONFIG.items():
+            if config["name"].lower() == chain_name.lower():
+                chain_id = c_id
+                break
+
+        if chain_id is None:
+            return json.dumps({"status": "error", "message": f"Unknown chain name: {chain_name}"})
+
+        # Get token details from SUPPORTED_TOKENS
+        token_config = SUPPORTED_TOKENS.get(token_symbol.upper())
+        if not token_config:
+            return json.dumps({"status": "error", "message": f"Unsupported token symbol: {token_symbol}"})
+
+        asset_address = token_config["addresses"].get(chain_id)
+        if not asset_address:
+            return json.dumps({"status": "error", "message": f"Token {token_symbol} not available on {chain_name}"})
+        
+        decimals = token_config["decimals"]
+        amount_wei = int(amount * (10 ** decimals))
+
+        # Get RPC URL and initialize executor
+        rpc_url = RPC_ENDPOINTS.get(chain_id)
+        if not rpc_url:
+            return json.dumps({"status": "error", "message": f"RPC URL not found for chain ID: {chain_id}"})
+        
+        executor = StrategyExecutor(rpc_url, PRIVATE_KEY)
+
+        # Run the async supply_to_aave function synchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            tx_hash = loop.run_until_complete(supply_to_aave(
+                executor=executor,
+                vault_address=vault_address,
+                asset_address=asset_address,
+                amount=amount_wei
+            ))
+        finally:
+            loop.close()
+        
+        if tx_hash:
+            return json.dumps({"status": "success", "message": "Supply transaction sent!", "tx_hash": tx_hash})
+        else:
+            return json.dumps({"status": "error", "message": "Failed to send supply transaction."})
+
+    except Exception as e:
+        logger.error(f"Error in supply_token_to_aave: {e}")
+        return json.dumps({"status": "error", "message": f"An unexpected error occurred: {str(e)}"})
+
+def withdraw_token_from_aave(
+    token_symbol: str,
+    amount: float,
+    chain_name: str,
+    vault_address: str
+) -> str:
+    """
+    Withdraws a given token from Aave V3 on a specified chain.
+    This is a synchronous function for LangChain compatibility.
+
+    Args:
+        token_symbol: The symbol of the token to withdraw (e.g., "USDC", "WBTC").
+        amount: The amount of the token to withdraw (human-readable format, e.g., 100.5).
+        chain_name: The name of the blockchain network (e.g., "Arbitrum").
+        vault_address: The address of the vault initiating the withdrawal.
+
+    Returns:
+        A JSON string indicating the success or failure of the operation,
+        including the transaction hash if successful.
+    """
+    try:
+        # Import here to avoid circular imports
+        from config import SUPPORTED_TOKENS, CHAIN_CONFIG, RPC_ENDPOINTS
+        from strategies.strategies import StrategyExecutor
+        
+        # Get private key from environment variable
+        PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+        if not PRIVATE_KEY:
+            return json.dumps({"status": "error", "message": "PRIVATE_KEY environment variable not set"})
+        
+        # Find chain_id from chain_name
+        chain_id = None
+        for c_id, config in CHAIN_CONFIG.items():
+            if config["name"].lower() == chain_name.lower():
+                chain_id = c_id
+                break
+
+        if chain_id is None:
+            return json.dumps({"status": "error", "message": f"Unknown chain name: {chain_name}"})
+
+        # Get token details from SUPPORTED_TOKENS
+        token_config = SUPPORTED_TOKENS.get(token_symbol.upper())
+        if not token_config:
+            return json.dumps({"status": "error", "message": f"Unsupported token symbol: {token_symbol}"})
+
+        asset_address = token_config["addresses"].get(chain_id)
+        if not asset_address:
+            return json.dumps({"status": "error", "message": f"Token {token_symbol} not available on {chain_name}"})
+        
+        decimals = token_config["decimals"]
+        amount_wei = int(amount * (10 ** decimals))
+
+        # Get RPC URL and initialize executor
+        rpc_url = RPC_ENDPOINTS.get(chain_id)
+        if not rpc_url:
+            return json.dumps({"status": "error", "message": f"RPC URL not found for chain ID: {chain_id}"})
+        
+        executor = StrategyExecutor(rpc_url, PRIVATE_KEY)
+
+        # Run the async withdraw_from_aave function synchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            tx_hash = loop.run_until_complete(withdraw_from_aave(
+                executor=executor,
+                vault_address=vault_address,
+                asset_address=asset_address,
+                amount=amount_wei
+            ))
+        finally:
+            loop.close()
+        
+        if tx_hash:
+            return json.dumps({"status": "success", "message": "Withdrawal transaction sent!", "tx_hash": tx_hash})
+        else:
+            return json.dumps({"status": "error", "message": "Failed to send withdrawal transaction."})
+
+    except Exception as e:
+        logger.error(f"Error in withdraw_token_from_aave: {e}")
+        return json.dumps({"status": "error", "message": f"An unexpected error occurred: {str(e)}"}) 

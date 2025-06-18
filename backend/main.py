@@ -7,7 +7,7 @@ from web3 import Web3
 from typing import Optional
 from config import logger
 from utils.mongo_util import MongoUtil
-from utils.portfolio_service import PortfolioService
+from portfolio_service import PortfolioService
 
 app = FastAPI()
 

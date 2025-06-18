@@ -1,6 +1,7 @@
 import sys
 import logging
 import os
+from dotenv import load_dotenv
 
 # Configure basic logging
 logging.basicConfig(
@@ -13,11 +14,14 @@ logging.basicConfig(
 # Create logger instance
 logger = logging.getLogger()
 
+load_dotenv()
+
 # Keychain secrets configuration
 # Format: (service_name, account_name, env_var_name)
 # If env_var_name is None, account_name will be used
 KEYCHAIN_SECRETS = [
     ("global", "OPENROUTER_API_KEY", None),
+    ("demether", "PRIVATE_KEY", None),
 ]
 
 

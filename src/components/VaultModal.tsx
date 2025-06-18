@@ -5,7 +5,7 @@ import { ethers } from 'ethers'
 import { useVaultVerification } from '../hooks/useVaultVerification'
 import { useTokenBalancesAndApprovals } from '../hooks/useTokenBalancesAndApprovals'
 import { useVaultTokenBalances } from '../hooks/useVaultTokenBalances'
-import { getTokensForChain, ERC20_ABI } from '../config/tokens'
+import { getTokensForChain, ERC20_ABI, VAULT_FACTORY_ADDRESSES, BEACON_ADDRESS, BEACON_PROXY_CREATION_CODE } from '../config/tokens'
 
 
 
@@ -23,14 +23,10 @@ interface VaultModalProps {
 }
 
 const SUPPORTED_CHAINS: Chain[] = [
-  // { id: 1, name: 'Ethereum', icon: 'Ξ', nativeCurrency: 'ETH', explorerUrl: 'https://etherscan.io' },
   { id: 42161, name: 'Arbitrum', icon: '🔵', nativeCurrency: 'ETH', explorerUrl: 'https://arbiscan.io' },
 ]
 
-// Configuration from your contract deployment
-const VAULT_FACTORY_ADDRESS = '0x99bD7B3FB6fD467e5D944008bD084b5d4c4331d4'
-const BEACON_ADDRESS = '0x329177804cab5440e1D4A2607Ea94a3fe3b303cb'
-const BEACON_PROXY_CREATION_CODE = '0x60a08060405261047a80380380916100178285610292565b833981016040828203126101eb5761002e826102c9565b602083015190926001600160401b0382116101eb57019080601f830112156101eb57815161005b816102dd565b926100696040519485610292565b8184526020840192602083830101116101eb57815f926020809301855e84010152823b15610274577fa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d5080546001600160a01b0319166001600160a01b038516908117909155604051635c60da1b60e01b8152909190602081600481865afa9081156101f7575f9161023a575b50803b1561021a5750817f1cf3b03a6cf19fa2baba4df148e9dcabedea7f8a5c07840e207e5c089be95d3e5f80a282511561020257602060049260405193848092635c60da1b60e01b82525afa9182156101f7575f926101ae575b505f809161018a945190845af43d156101a6573d9161016e836102dd565b9261017c6040519485610292565b83523d5f602085013e6102f8565b505b608052604051610123908161035782396080518160180152f35b6060916102f8565b9291506020833d6020116101ef575b816101ca60209383610292565b810103126101eb575f80916101e161018a956102c9565b9394509150610150565b5f80fd5b3d91506101bd565b6040513d5f823e3d90fd5b505050341561018c5763b398979f60e01b5f5260045ffd5b634c9c8ce360e01b5f9081526001600160a01b0391909116600452602490fd5b90506020813d60201161026c575b8161025560209383610292565b810103126101eb57610266906102c9565b5f6100f5565b3d9150610248565b631933b43b60e21b5f9081526001600160a01b038416600452602490fd5b601f909101601f19168101906001600160401b038211908210176102b557604052565b634e487b7160e01b5f52604160045260245ffd5b51906001600160a01b03821682036101eb57565b6001600160401b0381116102b557601f01601f191660200190565b9061031c575080511561030d57805190602001fd5b63d6bda27560e01b5f5260045ffd5b8151158061034d575b61032d575090565b639996b31560e01b5f9081526001600160a01b0391909116600452602490fd5b50803b1561032556fe60806040819052635c60da1b60e01b81526020906004817f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03165afa801560a2575f901560d1575060203d602011609c575b6080601f8201601f1916810191906001600160401b0383119083101760885760849160405260800160ad565b60d1565b634e487b7160e01b5f52604160045260245ffd5b503d6058565b6040513d5f823e3d90fd5b602090607f19011260cd576080516001600160a01b038116810360cd5790565b5f80fd5b5f8091368280378136915af43d5f803e1560e9573d5ff35b3d5ffdfea264697066735822122071a3b448b47de4dbffbebc1a06ad7dd9c7033c5ea7b32ab1802a80647e227fcf64736f6c634300081d0033'
+// Configuration constants are now imported from tokens.ts
 
 // VaultFactory ABI - only the functions we need
 const VAULT_FACTORY_ABI = [
@@ -85,8 +81,14 @@ const VAULT_ABI = [
  * Predicts the address of a vault using CREATE2 logic completely off-chain.
  * This matches your exact contract implementation.
  */
-const predictVaultAddressOffline = (vaultOwner: string): string => {
+const predictVaultAddressOffline = (vaultOwner: string, chainId: number): string => {
   try {
+    const factoryAddress = VAULT_FACTORY_ADDRESSES[chainId]
+    if (!factoryAddress) {
+      console.error('Factory address not found for chain:', chainId)
+      return ''
+    }
+
     // Use the same salt logic as the contract: bytes32(uint256(uint160(vaultOwner)))
     const salt = ethers.zeroPadValue(vaultOwner, 32)
 
@@ -95,7 +97,7 @@ const predictVaultAddressOffline = (vaultOwner: string): string => {
       "function initialize(address factoryAdmin, address vaultOwner)"
     ])
     const initData = vaultInterface.encodeFunctionData("initialize", [
-      VAULT_FACTORY_ADDRESS,
+      factoryAddress,
       vaultOwner
     ])
 
@@ -114,7 +116,7 @@ const predictVaultAddressOffline = (vaultOwner: string): string => {
 
     // 4. Compute the CREATE2 address
     const predictedAddress = ethers.getCreate2Address(
-      VAULT_FACTORY_ADDRESS,
+      factoryAddress,
       salt,
       ethers.keccak256(fullBytecode)
     )
@@ -149,7 +151,7 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
   // Use predicted address for display and approvals
   // This is the address where the user's vault WILL BE deployed (deterministic)
   // We check approvals against THIS address, not the factory
-  const vaultAddress = address ? predictVaultAddressOffline(address) : ''
+  const vaultAddress = address ? predictVaultAddressOffline(address, selectedChain.id) : ''
 
   // Get token balances and approvals for the predicted vault address (for deposits)
   // This checks: 1) User's token balances, 2) Approvals to spend tokens to the vault
@@ -345,8 +347,14 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
 
     // Handle vault deployment if no vault exists
     if (!hasVault && !isVaultLoading && action === 'deposit') {
+      const factoryAddress = VAULT_FACTORY_ADDRESSES[selectedChain.id]
+      if (!factoryAddress) {
+        alert('Factory not available on this chain.')
+        return
+      }
+      
       deployVault({
-        address: VAULT_FACTORY_ADDRESS as `0x${string}`,
+        address: factoryAddress,
         abi: VAULT_FACTORY_ABI,
         functionName: 'deployVault',
         args: [address as `0x${string}`],

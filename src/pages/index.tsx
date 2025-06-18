@@ -51,8 +51,23 @@ import { useVaultVerification } from '@/hooks/useVaultVerification'
 
 interface PortfolioData {
   total_value_usd: number
+  strategy_value_usd: number
   tokens_count: number
   chains_count: number
+  strategy_count: number
+  active_strategies: string[]
+  holdings: Array<{
+    symbol: string
+    name: string
+    chain_id: number
+    balance: number
+    price_usd: number
+    value_usd: number
+    type?: string
+    strategy?: string
+    protocol?: string
+    strategy_type?: string
+  }>
   isLoading: boolean
   error: string | null
 }
@@ -64,8 +79,12 @@ const DemaiPage = () => {
   const [isVaultModalOpen, setIsVaultModalOpen] = useState(false)
   const [portfolioData, setPortfolioData] = useState<PortfolioData>({
     total_value_usd: 0,
+    strategy_value_usd: 0,
     tokens_count: 0,
     chains_count: 0,
+    strategy_count: 0,
+    active_strategies: [],
+    holdings: [],
     isLoading: true,
     error: null
   })
@@ -133,10 +152,19 @@ const DemaiPage = () => {
       try {
         const result = await getPortfolioData(vaultAddress)
         if (result.success && result.data) {
+          // Calculate strategy value from holdings
+          const strategyValue = result.data.holdings
+            .filter(holding => holding.type === 'strategy')
+            .reduce((sum, holding) => sum + holding.value_usd, 0)
+          
           setPortfolioData({
             total_value_usd: result.data.total_value_usd,
+            strategy_value_usd: strategyValue,
             tokens_count: result.data.tokens_count,
             chains_count: result.data.chains_count,
+            strategy_count: result.data.strategy_count || 0,
+            active_strategies: result.data.active_strategies || [],
+            holdings: result.data.holdings || [],
             isLoading: false,
             error: null
           })
@@ -235,6 +263,9 @@ const DemaiPage = () => {
                           : formatCurrency(portfolioData.total_value_usd)
                     }
                   </div>
+                  
+
+                  
                   <div className="mb-1 text-lg font-medium text-white/70">
                     {portfolioData.isLoading || isVaultLoading
                       ? 'Fetching portfolio data...'
@@ -255,9 +286,26 @@ const DemaiPage = () => {
                         ? 'Deploy a vault to start'
                         : portfolioData.error
                           ? 'Data unavailable'
-                          : `${portfolioData.tokens_count} active positions`
+                          : portfolioData.strategy_count > 0
+                            ? `${portfolioData.tokens_count} tokens, ${portfolioData.strategy_count} strategies (${formatCurrency(portfolioData.strategy_value_usd)})`
+                            : `${portfolioData.tokens_count} tokens`
                     }
                   </div>
+                  
+                  {/* Active Strategies Display */}
+                  {!portfolioData.isLoading && !isVaultLoading && hasVault && !portfolioData.error && portfolioData.active_strategies.length > 0 && (
+                    <div className="mt-2 flex items-center text-xs font-medium text-blue-400">
+                      <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Active: {portfolioData.active_strategies.map(strategy => {
+                        switch(strategy) {
+                          case 'aave_v3': return 'Aave V3'
+                          default: return strategy
+                        }
+                      }).join(', ')}
+                    </div>
+                  )}
                 </div>
 
                 {/* AI Suggestions */}
@@ -446,3 +494,4 @@ const DemaiPage = () => {
 }
 
 export default DemaiPage
+

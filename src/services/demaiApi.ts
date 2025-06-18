@@ -28,9 +28,15 @@ interface PortfolioResponse {
       balance: number
       price_usd: number
       value_usd: number
+      type?: string
+      strategy?: string
+      protocol?: string
+      strategy_type?: string
     }>
     chains_count: number
     tokens_count: number
+    strategy_count: number
+    active_strategies: string[]
   }
   error?: string
 }

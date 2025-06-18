@@ -2,9 +2,10 @@ from typing import Dict, List, Optional, Any, TYPE_CHECKING
 from decimal import Decimal
 import logging
 import asyncio
-from .coingecko_util import CoinGeckoUtil
-from .mongo_util import MongoUtil
+from utils.coingecko_util import CoinGeckoUtil
+from utils.mongo_util import MongoUtil
 from config import SUPPORTED_TOKENS, RPC_ENDPOINTS, NATIVE_CURRENCIES, ERC20_ABI
+from strategy_config import STRATEGY_BALANCE_CHECKERS
 
 if TYPE_CHECKING:
     from web3 import Web3
@@ -60,6 +61,8 @@ class PortfolioService:
                 "holdings": [],
                 "chains_count": 0,
                 "tokens_count": 0,
+                "strategy_count": 0,
+                "active_strategies": [],
                 "error": "Web3 not available"
             }
             
@@ -70,11 +73,13 @@ class PortfolioService:
             # Get balances for all tokens across all chains concurrently
             token_balances_task = self._get_all_token_balances(vault_address)
             eth_balances_task = self._get_native_balances(vault_address)
+            strategy_balances_task = self._get_all_strategy_balances(vault_address)
             
-            # Wait for both tasks to complete
-            all_balances, eth_balances = await asyncio.gather(
+            # Wait for all tasks to complete
+            all_balances, eth_balances, strategy_balances = await asyncio.gather(
                 token_balances_task,
-                eth_balances_task
+                eth_balances_task,
+                strategy_balances_task
             )
             
             # Combine all balances
@@ -99,7 +104,7 @@ class PortfolioService:
             else:
                 logger.info("No tokens with positive balances found, skipping price lookup")
             
-            # Calculate USD values
+            # Calculate USD values for regular holdings
             total_value = 0.0
             holdings = []
             
@@ -114,18 +119,54 @@ class PortfolioService:
                     "chain_id": balance["chain_id"],
                     "balance": balance["balance"],
                     "price_usd": token_price,
-                    "value_usd": usd_value
+                    "value_usd": usd_value,
+                    "type": "token"
                 })
             
+            # Calculate USD values for strategy balances
+            strategy_holdings = []
+            strategy_tokens_with_prices = [
+                balance for balance in strategy_balances 
+                if balance["coingeckoId"] and balance["balance"] > 0
+            ]
+            
+            for balance in strategy_tokens_with_prices:
+                token_price = prices.get(balance["coingeckoId"], 0.0)
+                usd_value = balance["balance"] * token_price
+                total_value += usd_value
+                
+                strategy_holdings.append({
+                    "symbol": balance["token_symbol"],
+                    "name": balance["token_name"],
+                    "chain_id": balance["chain_id"],
+                    "balance": balance["balance"],
+                    "price_usd": token_price,
+                    "value_usd": usd_value,
+                    "type": "strategy",
+                    "strategy": balance["strategy"],
+                    "protocol": balance["protocol"],
+                    "strategy_type": balance["strategy_type"]
+                })
+            
+            # Combine all holdings
+            all_holdings = holdings + strategy_holdings
+            
             # Sort holdings by USD value (highest first)
-            holdings.sort(key=lambda x: x["value_usd"], reverse=True)
+            all_holdings.sort(key=lambda x: x["value_usd"], reverse=True)
+            
+            # Count active strategies
+            active_strategies = list(set(
+                h["strategy"] for h in strategy_holdings
+            ))
             
             return {
                 "vault_address": vault_address,
                 "total_value_usd": total_value,
-                "holdings": holdings,
-                "chains_count": len(set(h["chain_id"] for h in holdings)),
-                "tokens_count": len(holdings)
+                "holdings": all_holdings,
+                "chains_count": len(set(h["chain_id"] for h in all_holdings)),
+                "tokens_count": len(holdings),
+                "strategy_count": len(strategy_holdings),
+                "active_strategies": active_strategies
             }
             
         except Exception as e:
@@ -136,6 +177,8 @@ class PortfolioService:
                 "holdings": [],
                 "chains_count": 0,
                 "tokens_count": 0,
+                "strategy_count": 0,
+                "active_strategies": [],
                 "error": str(e)
             }
     
@@ -232,6 +275,35 @@ class PortfolioService:
         
         logger.info(f"Retrieved native balances for {len(balances)} chains")
         return balances
+    
+    async def _get_all_strategy_balances(self, vault_address: str) -> List[Dict[str, Any]]:
+        """Get balances for all strategies concurrently"""
+        tasks = []
+        
+        # Create tasks for each strategy balance checker
+        for strategy_name, balance_checker in STRATEGY_BALANCE_CHECKERS.items():
+            task = balance_checker(self.web3_instances, vault_address, SUPPORTED_TOKENS)
+            tasks.append((task, strategy_name))
+        
+        logger.info(f"Checking strategy balances for {len(tasks)} strategies")
+        
+        # Execute all strategy balance checks concurrently
+        results = await asyncio.gather(*[task for task, _ in tasks], return_exceptions=True)
+        
+        all_strategy_balances = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                _, strategy_name = tasks[i]
+                logger.error(f"Error getting {strategy_name} strategy balances: {result}")
+                continue
+                
+            # Result should be a list of strategy balance dictionaries
+            if isinstance(result, list):
+                all_strategy_balances.extend(result)
+                logger.info(f"Found {len(result)} strategy balances from {tasks[i][1]}")
+        
+        logger.info(f"Retrieved total of {len(all_strategy_balances)} strategy balances")
+        return all_strategy_balances
     
     async def _get_token_balance_async(self, vault_address: str, token_address: str, chain_id: int, token_config: Dict) -> Optional[float]:
         """Get balance for a specific ERC20 token asynchronously"""

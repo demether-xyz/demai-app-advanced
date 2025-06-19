@@ -1,93 +1,134 @@
-import React from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import React from 'react'
+import Image from 'next/image'
+import { MagnifyingGlassIcon, Cog6ToothIcon, Bars3Icon, UserIcon } from '@heroicons/react/24/outline'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useEventEmitter } from '@/hooks/useEvents'
 
 const DemaiNavbar: React.FC = () => {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-
-  const handleConnection = () => {
-    if (isConnected) {
-      disconnect();
-    } else {
-      connect({ connector: connectors[0] });
-    }
-  };
-
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-
+  const emit = useEventEmitter()
   return (
-    <nav className="h-16 bg-gradient-to-r from-black via-gray-900/95 to-black border-b border-cyan-500/20 px-6 flex items-center justify-between relative backdrop-blur-sm">
-      {/* Glowing top border */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent" />
-      
-      {/* Logo Section */}
+    <nav className="relative flex h-14 items-center justify-between border-b border-gray-800/50 bg-black/95 px-6 backdrop-blur-md">
+      {/* Left Section - Logo */}
       <div className="flex items-center space-x-8">
         <div className="flex items-center space-x-2">
-          <div className="relative w-40 h-40 group">
-            {/* Glow effect behind logo */}
-            <div className="absolute inset-0 bg-cyan-400/20 rounded-full blur-xl group-hover:bg-cyan-400/30 transition-all duration-300" />
-            <Image
-              src="/images/logo.webp"
-              alt="demAI Logo"
-              fill
-              className="object-contain relative z-10 drop-shadow-[0_0_10px_rgba(0,255,255,0.3)]"
-              priority
-            />
+          {/* Logo */}
+          <div className="relative h-12 w-36">
+            <Image src="/images/logo.webp" alt="demAI Logo" fill className="object-contain" priority />
           </div>
-        </div>
-
-        {/* Navigation Links */}
-        <div className="flex items-center space-x-8">
-          <Link
-            href="#"
-            className="relative text-cyan-300 hover:text-cyan-100 font-medium tracking-wide transition-all duration-300 group"
-          >
-            <span className="relative z-10">DEPOSIT</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/20 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg blur-sm" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          </Link>
-          <Link
-            href="#"
-            className="relative text-cyan-300 hover:text-cyan-100 font-medium tracking-wide transition-all duration-300 group"
-          >
-            <span className="relative z-10">WITHDRAW</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/20 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg blur-sm" />
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          </Link>
         </div>
       </div>
 
-      {/* Connect Button */}
-      <button
-        onClick={handleConnection}
-        className="relative px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black font-medium rounded-lg transition-all duration-300 group overflow-hidden"
-      >
-        {/* Button glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-400 opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-xl" />
-        
-        {/* Button content */}
-        <span className="relative z-10 tracking-wide">
-          {isConnected ? formatAddress(address!) : 'CONNECT WALLET'}
-        </span>
-        
-        {/* Animated border */}
-        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
-             style={{ padding: '1px' }}>
-          <div className="w-full h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg" />
+      {/* Center Section - Search Bar */}
+      <div className="mx-8 max-w-md flex-1">
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search protocols, strategies, or assets..."
+            className="w-full rounded-lg border border-gray-600/60 bg-gray-800/80 py-2.5 pr-4 pl-11 text-sm text-gray-100 placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:bg-gray-700/80 focus:ring-1 focus:ring-blue-500/40 focus:outline-none"
+          />
         </div>
-      </button>
-      
-      {/* Status indicator for connected wallet */}
-      {isConnected && (
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-      )}
-    </nav>
-  );
-};
+      </div>
 
-export default DemaiNavbar; 
+      {/* Right Section - Navigation Tabs and Controls */}
+      <div className="flex items-center space-x-6">
+        {/* Navigation Tabs */}
+        <div className="flex items-center space-x-2 rounded-lg bg-gray-800/40 p-1">
+          <button className="rounded-md bg-blue-600/80 px-4 py-2 text-sm text-white shadow-sm">Overview</button>
+          <button className="rounded-md px-4 py-2 text-sm text-gray-400 transition-colors duration-200 hover:text-gray-200">
+            Dashboard
+          </button>
+          <button 
+            onClick={() => emit('vault.open')}
+            className="rounded-md px-4 py-2 text-sm text-gray-400 transition-colors duration-200 hover:text-gray-200"
+          >
+            Vault
+          </button>
+        </div>
+
+        {/* Right Controls */}
+        <div className="flex items-center space-x-1">
+          <button className="rounded-lg p-2 text-gray-400 transition-all duration-200 hover:bg-gray-700/50 hover:text-gray-200">
+            <Cog6ToothIcon className="h-5 w-5" />
+          </button>
+          <button className="rounded-lg p-2 text-gray-400 transition-all duration-200 hover:bg-gray-700/50 hover:text-gray-200">
+            <Bars3Icon className="h-5 w-5" />
+          </button>
+          {/* Custom styled RainbowKit Connect Button */}
+          <ConnectButton.Custom>
+            {({
+              account,
+              chain,
+              openAccountModal,
+              openChainModal,
+              openConnectModal,
+              authenticationStatus,
+              mounted,
+            }) => {
+              // Note: If your app doesn't use authentication, you
+              // can remove all 'authenticationStatus' checks
+              const ready = mounted && authenticationStatus !== 'loading'
+              const connected =
+                ready &&
+                account &&
+                chain &&
+                (!authenticationStatus ||
+                  authenticationStatus === 'authenticated')
+
+              return (
+                <div
+                  {...(!ready && {
+                    'aria-hidden': true,
+                    'style': {
+                      opacity: 0,
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                    },
+                  })}
+                >
+                  {(() => {
+                    if (!connected) {
+                      return (
+                        <button
+                          onClick={openConnectModal}
+                          type="button"
+                          className="rounded-md px-4 py-2 text-sm text-gray-400 transition-colors duration-200 hover:text-gray-200"
+                        >
+                          Connect
+                        </button>
+                      )
+                    }
+
+                    if (chain.unsupported) {
+                      return (
+                        <button
+                          onClick={openChainModal}
+                          type="button"
+                          className="rounded-md px-4 py-2 text-sm text-red-400 transition-colors duration-200 hover:text-red-200"
+                        >
+                          Wrong Network
+                        </button>
+                      )
+                    }
+
+                    return (
+                      <button
+                        onClick={openAccountModal}
+                        type="button"
+                        className="rounded-md bg-green-600/80 px-4 py-2 text-sm text-white shadow-sm transition-colors duration-200 hover:bg-green-600"
+                      >
+                        {account.displayName}
+                      </button>
+                    )
+                  })()}
+                </div>
+              )
+            }}
+          </ConnectButton.Custom>
+        </div>
+      </div>
+    </nav>
+  )
+}
+
+export default DemaiNavbar

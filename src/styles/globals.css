@@ -58,31 +58,6 @@ body {
   font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
-/* Typography System */
-h1 {
-  @apply font-['Poppins'] text-5xl font-light tracking-tight text-gray-900 md:text-6xl lg:text-[4.5rem] lg:leading-[1.2] lg:tracking-[-0.02em];
-}
-
-h2 {
-  @apply font-['Poppins'] text-4xl font-light tracking-tight text-gray-900 md:tracking-[-0.02em] lg:text-5xl lg:leading-[1.2];
-}
-
-h3 {
-  @apply font-['Poppins'] text-3xl font-light text-gray-900 lg:text-4xl lg:leading-[1.2];
-}
-
-h4 {
-  @apply font-['Poppins'] text-2xl font-light text-gray-900 lg:text-3xl;
-}
-
-h5 {
-  @apply font-['Poppins'] text-xl font-normal text-gray-900 lg:text-2xl;
-}
-
-h6 {
-  @apply font-['Poppins'] text-lg font-normal text-gray-900;
-}
-
 .nav-gradient-underline {
   @apply relative text-sm font-medium;
 }
@@ -99,4 +74,161 @@ h6 {
 }
 .nav-gradient-underline:hover::after {
   transform: scaleX(1);
+}
+
+/* Siri-like Glowing Text Effects */
+.siri-glow-text {
+  background: linear-gradient(90deg, 
+    rgba(147, 51, 234, 0.9) 0%,
+    rgba(59, 130, 246, 0.9) 25%,
+    rgba(16, 185, 129, 0.9) 50%,
+    rgba(245, 158, 11, 0.9) 75%,
+    rgba(239, 68, 68, 0.9) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: siri-shimmer 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(147, 51, 234, 0.3));
+}
+
+@keyframes siri-shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.siri-glow-subtle {
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 
+    0 0 10px rgba(147, 51, 234, 0.4),
+    0 0 20px rgba(59, 130, 246, 0.3),
+    0 0 30px rgba(16, 185, 129, 0.2);
+  animation: siri-pulse 2s ease-in-out infinite;
+}
+
+@keyframes siri-pulse {
+  0%, 100% {
+    text-shadow: 
+      0 0 10px rgba(147, 51, 234, 0.4),
+      0 0 20px rgba(59, 130, 246, 0.3),
+      0 0 30px rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    text-shadow: 
+      0 0 15px rgba(147, 51, 234, 0.6),
+      0 0 25px rgba(59, 130, 246, 0.5),
+      0 0 35px rgba(16, 185, 129, 0.4);
+  }
+}
+
+/* Chat Interface Specific Styles */
+.chat-container {
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-suggestion-card {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat-suggestion-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.chat-message-user {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: linear-gradient(135deg, 
+    rgba(147, 51, 234, 0.2) 0%, 
+    rgba(59, 130, 246, 0.2) 100%
+  );
+  border: 1px solid rgba(147, 51, 234, 0.3);
+}
+
+.chat-message-ai {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-input {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s ease;
+}
+
+.chat-input:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(147, 51, 234, 0.4);
+  box-shadow: 0 0 20px rgba(147, 51, 234, 0.2);
+}
+
+/* Scrollbar Styles - Fixed and Non-overlapping */
+.chat-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.chat-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Slide-up animation for chat content */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { useAccount, useChainId, useReadContract } from 'wagmi'
 import { useAppStore } from '../store'
-import { VAULT_FACTORY_ADDRESSES, VAULT_FACTORY_ABI } from '../config/tokens'
+import { VAULT_FACTORY_ADDRESS, VAULT_FACTORY_ABI } from '../config/tokens'
 
 export interface UseVaultVerificationReturn {
   vaultAddress: string | null | undefined
@@ -26,7 +26,7 @@ export function useVaultVerification(enabled: boolean = true): UseVaultVerificat
   } = useAppStore()
 
   // Get factory address for current chain
-  const factoryAddress = VAULT_FACTORY_ADDRESSES[chainId]
+  const factoryAddress = VAULT_FACTORY_ADDRESS
 
   // Get cached vault address and query status
   const cachedVaultAddress = address ? getUserVault(chainId, address) : undefined
@@ -118,7 +118,7 @@ export function useVaultVerification(enabled: boolean = true): UseVaultVerificat
 export function useVaultVerificationQuery(userAddress?: `0x${string}`, targetChainId?: number) {
   const currentChainId = useChainId()
   const chainId = targetChainId || currentChainId
-  const factoryAddress = VAULT_FACTORY_ADDRESSES[chainId]
+  const factoryAddress = VAULT_FACTORY_ADDRESS
 
   const {
     data: vaultAddress,
@@ -149,5 +149,5 @@ export function useVaultVerificationQuery(userAddress?: `0x${string}`, targetCha
   }
 }
 
-// Export factory addresses and ABI for other components
-export { VAULT_FACTORY_ADDRESSES, VAULT_FACTORY_ABI } 
+// Export factory ABI for other components that might need it
+export { VAULT_FACTORY_ABI } 

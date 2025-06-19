@@ -18,6 +18,7 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
 
   // Listen for portfolio update events
   const portfolioUpdateEvent = useEvent('app.portfolio')
+  const portfolioRefreshEvent = useEvent('app.portfolio.refresh')
 
   // Get current portfolio data from store
   const portfolioData = vaultAddress ? getPortfolioData(vaultAddress) : undefined
@@ -45,7 +46,7 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
     setPortfolioError(vaultAddr, null)
 
     try {
-      const result = await fetchPortfolioData(vaultAddr)
+      const result = await fetchPortfolioData(vaultAddr, force)
       if (result.success && result.data) {
         // Calculate strategy value from holdings
         const strategyValue = result.data.holdings
@@ -101,9 +102,16 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
   // Listen for portfolio update events
   useEffect(() => {
     if (portfolioUpdateEvent > 0 && vaultAddress) {
-      fetchPortfolio(vaultAddress, true)
+      fetchPortfolio(vaultAddress)
     }
   }, [portfolioUpdateEvent, vaultAddress])
+
+  // Listen for portfolio refresh events
+  useEffect(() => {
+    if (portfolioRefreshEvent > 0 && vaultAddress) {
+      fetchPortfolio(vaultAddress, true)
+    }
+  }, [portfolioRefreshEvent, vaultAddress])
 
   // Return the portfolio data or default if not available
   return {

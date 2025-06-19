@@ -1,18 +1,15 @@
 // src/demai/services/demaiApi.ts
 import { getStoredAuthData } from '../hooks/useAuth'
+import { PortfolioData } from '../store'
 
 // Define the base URL for the Demai API
 // Use an environment variable if available, otherwise default to localhost for development
 const API_BASE_URL = process.env.NEXT_PUBLIC_DEMAI_API_URL || 'http://localhost:5050'
 
-interface ApiResponse {
+interface ApiResponse<T> {
   success: boolean
-  message?: string
+  data?: T
   error?: string
-  data?: {
-    text: string
-    windows?: string[]
-  }
 }
 
 interface PortfolioResponse {
@@ -46,172 +43,83 @@ export const storeAuthData = (authData: { signature: string; message: string; ad
 }
 
 // Function to send a message to the AI chat endpoint
-export const sendMessageToDemai = async (message: string, walletAddress?: string, vaultAddress?: string): Promise<ApiResponse> => {
+export const sendMessageToDemai = async (message: string, walletAddress?: string, vaultAddress?: string): Promise<ApiResponse<{ text: string; windows?: string[] }>> => {
   try {
     // Get authentication data from localStorage
     const authData = getStoredAuthData()
     if (!authData) {
-      return {
-        success: false,
-        error: 'No authentication data found. Please connect your wallet and sign the message.',
-      }
+      return { success: false, error: 'User is not authenticated.' }
     }
 
-    // Construct the full endpoint URL
-    const endpointUrl = `${API_BASE_URL}/chat/`
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
 
-    try {
-      const response = await fetch(endpointUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message,
-          wallet_address: authData.address, // Use authenticated wallet address
-          vault_address: vaultAddress || '', // Use actual vault address for portfolio
-          signature: authData.signature, // Use real signature from auth
-        }),
-      })
+    const body = JSON.stringify({
+      message,
+      wallet_address: authData.address,
+      vault_address: vaultAddress,
+      signature: authData.signature,
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }))
-        if (response.status === 401) {
-          return {
-            success: false,
-            error: errorData.detail || 'Invalid wallet authentication. Please reconnect your wallet.',
-          }
-        }
-        return {
-          success: false,
-          error: errorData.detail || `Server error! Status: ${response.status}`,
-        }
-      }
+    const response = await fetch(`${API_BASE_URL}/chat/`, {
+      method: 'POST',
+      headers,
+      body,
+    });
 
-      const data = await response.json()
-
-      // The backend returns a response field containing JSON string
-      if (!data || typeof data.response !== 'string') {
-        return {
-          success: false,
-          error: 'Invalid response format from server.',
-        }
-      }
-
-      // Parse the JSON response from the backend
-      try {
-        const parsedResponse = JSON.parse(data.response)
-        
-        if (parsedResponse && parsedResponse.text) {
-          return {
-            success: true,
-            data: {
-              text: parsedResponse.text,
-              windows: parsedResponse.windows || []
-            }
-          }
-        } else {
-          // Fallback if parsing fails
-          return {
-            success: true,
-            message: data.response,
-          }
-        }
-      } catch (parseError) {
-        // If JSON parsing fails, treat as plain text
-        return {
-          success: true,
-          message: data.response,
-        }
-      }
-    } catch (fetchError) {
-      // Handle network-related errors specifically
-      if (fetchError instanceof TypeError && fetchError.message === 'Failed to fetch') {
-        return {
-          success: false,
-          error: 'Unable to connect to the Demai API. Please check if the service is running and try again.',
-        }
-      }
-      return {
-        success: false,
-        error: fetchError instanceof Error ? fetchError.message : 'Network error occurred',
-      }
+    if (!response.ok) {
+      const errorData = await response.json();
+      return { success: false, error: errorData.detail || 'Network response was not ok' };
     }
+
+    const data = await response.json();
+    return { success: true, data: data.response };
   } catch (error) {
-    console.error('Error sending message to Demai:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'An unexpected error occurred while sending the message.',
+    console.error('Failed to send message to Demai API:', error);
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
     }
+    return { success: false, error: 'An unknown error occurred' };
   }
-}
+};
 
 // Function to get portfolio data
-export const getPortfolioData = async (vaultAddress: string): Promise<PortfolioResponse> => {
+export const getPortfolioData = async (
+  vaultAddress: string,
+  refresh: boolean = false
+): Promise<ApiResponse<PortfolioData>> => {
   try {
-    // Get authentication data from localStorage
     const authData = getStoredAuthData()
     if (!authData) {
-      return {
-        success: false,
-        error: 'No authentication data found. Please connect your wallet and sign the message.',
-      }
+      return { success: false, error: 'User is not authenticated.' }
     }
 
-    // Construct the full endpoint URL
-    const endpointUrl = `${API_BASE_URL}/portfolio/`
+    // The backend expects a POST request with signature
+    const response = await fetch(`${API_BASE_URL}/portfolio/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        vault_address: vaultAddress,
+        wallet_address: authData.address,
+        signature: authData.signature,
+        refresh: refresh, // Pass refresh flag to the backend
+      }),
+    })
 
-    try {
-      const response = await fetch(endpointUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          vault_address: vaultAddress,
-          wallet_address: authData.address, // Use authenticated wallet address
-          signature: authData.signature, // Use real signature from auth
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Unknown error occurred' }))
-        if (response.status === 401) {
-          return {
-            success: false,
-            error: errorData.detail || 'Invalid wallet authentication. Please reconnect your wallet.',
-          }
-        }
-        return {
-          success: false,
-          error: errorData.detail || `Server error! Status: ${response.status}`,
-        }
-      }
-
-      const data = await response.json()
-
-      return {
-        success: true,
-        data: data
-      }
-    } catch (fetchError) {
-      // Handle network-related errors specifically
-      if (fetchError instanceof TypeError && fetchError.message === 'Failed to fetch') {
-        return {
-          success: false,
-          error: 'Unable to connect to the portfolio service. Please check if the service is running and try again.',
-        }
-      }
-      return {
-        success: false,
-        error: fetchError instanceof Error ? fetchError.message : 'Network error occurred',
-      }
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { success: false, error: errorData.detail || 'Network response was not ok' }
     }
+    const data = await response.json()
+    return { success: true, data }
   } catch (error) {
-    console.error('Error getting portfolio data:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'An unexpected error occurred while getting portfolio data.',
+    console.error('Failed to fetch portfolio data:', error)
+    if (error instanceof Error) {
+      return { success: false, error: error.message }
     }
+    return { success: false, error: 'An unknown error occurred' }
   }
 }

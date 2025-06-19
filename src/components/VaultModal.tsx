@@ -7,46 +7,14 @@ import { useTokenBalancesAndApprovals } from '../hooks/useTokenBalancesAndApprov
 import { useVaultTokenBalances } from '../hooks/useVaultTokenBalances'
 import { useVaultAddress } from '../hooks/useVaultAddress'
 import { useEventEmitter } from '../hooks/useEvents'
-import { getTokensForChain, ERC20_ABI, VAULT_FACTORY_ADDRESSES } from '../config/tokens'
-
-
-
-interface Chain {
-  id: number
-  name: string
-  icon: string
-  nativeCurrency: string
-  explorerUrl: string
-}
+import { getTokensForChain, ERC20_ABI, VAULT_FACTORY_ADDRESS, VAULT_FACTORY_ABI, SUPPORTED_CHAINS, Chain } from '../config/tokens'
 
 interface VaultModalProps {
   isOpen: boolean
   onClose: () => void
 }
 
-const SUPPORTED_CHAINS: Chain[] = [
-  { id: 42161, name: 'Arbitrum', icon: '🔵', nativeCurrency: 'ETH', explorerUrl: 'https://arbiscan.io' },
-]
-
 // Configuration constants are now imported from tokens.ts
-
-// VaultFactory ABI - only the functions we need
-const VAULT_FACTORY_ABI = [
-  {
-    inputs: [{ internalType: 'address', name: 'vaultOwner', type: 'address' }],
-    name: 'deployVault',
-    outputs: [{ internalType: 'address', name: 'vaultAddress', type: 'address' }],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
-    name: 'getUserVault',
-    outputs: [{ internalType: 'address', name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const
 
 // Vault ABI - for interacting with deployed vaults
 const VAULT_ABI = [
@@ -86,7 +54,7 @@ const VAULT_ABI = [
 const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
   const { address } = useAccount()
   const currentChainId = useChainId()
-  const { switchChain } = useSwitchChain()
+  const { chains, switchChain, isPending: isSwitchingChain, error: switchChainError } = useSwitchChain()
   const [action, setAction] = useState<'deposit' | 'withdraw'>('deposit')
   const [selectedChain, setSelectedChain] = useState<Chain>(SUPPORTED_CHAINS[0])
   const [selectedTokenSymbol, setSelectedTokenSymbol] = useState<string>('')
@@ -251,7 +219,7 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
       // Also refetch vault tokens to update vault balances
       refetchVaultTokens()
       // Emit portfolio update event
-      emit('app.portfolio')
+      emit('app.portfolio.refresh')
       // Reset form
       setAmount('')
       console.log('Deposit successful! Hash:', depositHash)
@@ -266,7 +234,7 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
       // Also refetch user tokens to update wallet balances
       refetchUserTokens()
       // Emit portfolio update event
-      emit('app.portfolio')
+      emit('app.portfolio.refresh')
       // Reset form
       setAmount('')
       console.log('Withdrawal successful! Hash:', withdrawHash)
@@ -305,7 +273,7 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
 
     // Handle vault deployment if no vault exists
     if (!hasVault && !isVaultLoading && action === 'deposit') {
-      const factoryAddress = VAULT_FACTORY_ADDRESSES[selectedChain.id]
+      const factoryAddress = VAULT_FACTORY_ADDRESS
       if (!factoryAddress) {
         alert('Factory not available on this chain.')
         return
@@ -386,9 +354,17 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
   }
 
   const handleChainSwitch = () => {
-    switchChain({ chainId: selectedChain.id })
-    // Clear vault cache when switching chains to force re-verification
-    clearVaultCache()
+    if (!switchChain) return
+    switchChain({ chainId: selectedChain.id }, {
+      onSuccess: () => {
+        // Clear vault cache when switching chains to force re-verification
+        clearVaultCache()
+      },
+      onError: (error) => {
+        // You can add user-facing error handling here, e.g., a toast notification
+        console.error("Failed to switch chains:", error)
+      }
+    })
   }
 
   const handleMaxClick = () => {
@@ -638,6 +614,16 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           {/* Error Messages */}
+          {switchChainError && (
+            <div className="rounded-lg bg-red-900/50 border border-red-700/50 p-3">
+              <div className="text-sm text-red-300 break-words">
+                Error switching chain: {switchChainError.message.length > 100 
+                  ? `${switchChainError.message.substring(0, 100)}...` 
+                  : switchChainError.message}
+              </div>
+            </div>
+          )}
+
           {deployVaultError && (
             <div className="rounded-lg bg-red-900/50 border border-red-700/50 p-3">
               <div className="text-sm text-red-300 break-words">
@@ -757,9 +743,17 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
             <button
               type="button"
               onClick={handleChainSwitch}
-              className="w-full rounded-lg bg-orange-600 px-4 py-3 font-medium text-white transition-colors hover:bg-orange-700"
+              disabled={isSwitchingChain}
+              className="w-full rounded-lg bg-orange-600 px-4 py-3 font-medium text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-orange-800"
             >
-              Switch to {selectedChain.name}
+              {isSwitchingChain ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  <span>Switching...</span>
+                </div>
+              ) : (
+                `Switch to ${selectedChain.name}`
+              )}
             </button>
           ) : (
             <button

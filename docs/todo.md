@@ -1,6 +1,6 @@
-- deploy
-- regular function to do something
-- add other cases
+- fix refresh 
+- fix chat responses no showing
+- fix chat history
 
 #### 4.1 Telegram Integration
 

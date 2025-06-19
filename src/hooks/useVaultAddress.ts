@@ -1,65 +1,183 @@
 import { useMemo } from 'react'
-import { ethers } from 'ethers'
-import { VAULT_FACTORY_ADDRESSES, BEACON_ADDRESS, BEACON_PROXY_CREATION_CODE } from '../config/tokens'
+import { useReadContract } from 'wagmi'
+import { VAULT_FACTORY_ADDRESS, VAULT_FACTORY_ABI, isFactoryDeployed } from '../config/tokens'
 
 /**
- * Hook to calculate vault addresses using deterministic CREATE2
+ * Hook to get vault addresses using the factory's deterministic predictVaultAddress function
+ * This replaces manual CREATE2 calculation and ensures perfect compatibility with the contract
  */
 const useVaultAddress = (vaultOwner: string | undefined, chainId: number) => {
-  const vaultAddress = useMemo(() => {
-    if (!vaultOwner) return ''
-    
-    try {
-      const factoryAddress = VAULT_FACTORY_ADDRESSES[chainId]
-      if (!factoryAddress) {
-        console.error('Factory address not found for chain:', chainId)
-        return ''
+  const factoryDeployed = isFactoryDeployed(chainId)
+  const factoryAddress = VAULT_FACTORY_ADDRESS
+
+  // First, check if the user already has a deployed vault
+  const { data: existingVault, isLoading: isLoadingExisting } = useReadContract({
+    address: factoryAddress,
+    abi: VAULT_FACTORY_ABI,
+    functionName: 'getUserVault',
+    args: vaultOwner ? [vaultOwner as `0x${string}`] : undefined,
+    chainId,
+    query: {
+      enabled: !!(vaultOwner && factoryAddress && factoryDeployed),
+      staleTime: 30_000, // Cache for 30 seconds
+    },
+  })
+
+  const hasDeployedVault = useMemo(() => existingVault && existingVault !== '0x0000000000000000000000000000000000000000', [existingVault])
+
+  // Only predict the address if a vault is NOT already deployed
+  const {
+    data: predictedAddress,
+    isError,
+    isLoading: isLoadingPredicted,
+  } = useReadContract({
+    address: factoryAddress,
+    abi: VAULT_FACTORY_ABI,
+    functionName: 'predictVaultAddress',
+    args: vaultOwner ? [vaultOwner as `0x${string}`] : undefined,
+    chainId,
+    query: {
+      enabled: !!(vaultOwner && factoryAddress && factoryDeployed && !hasDeployedVault),
+      staleTime: Infinity, // Predicted addresses are deterministic and never change
+    },
+  })
+
+  const vaultInfo = useMemo(() => {
+    if (!vaultOwner || !factoryAddress || !factoryDeployed) {
+      return {
+        vaultAddress: '',
+        predictedAddress: '',
+        existingVault: '',
+        hasVault: false,
+        isDeployed: false,
+        isLoading: false,
+        isError: true,
+        errorMessage: !factoryDeployed ? `Factory not deployed on chain ${chainId}` : 'Invalid parameters',
       }
-
-      // Use the same salt logic as the contract: keccak256(abi.encodePacked(VAULT_DEPLOYER_ID, vaultOwner))
-      const VAULT_DEPLOYER_ID = ethers.keccak256(ethers.toUtf8Bytes("DEMAI_VAULT_FACTORY_V1"))
-      const salt = ethers.keccak256(ethers.concat([VAULT_DEPLOYER_ID, ethers.zeroPadValue(vaultOwner, 20)]))
-
-      // 1. Prepare the initialization data for the Vault's `initialize` function
-      const vaultInterface = new ethers.Interface([
-        "function initialize(address factoryAdmin, address vaultOwner)"
-      ])
-      const initData = vaultInterface.encodeFunctionData("initialize", [
-        factoryAddress,
-        vaultOwner
-      ])
-
-      // 2. Encode the constructor arguments for the BeaconProxy
-      const constructorArgs = ethers.AbiCoder.defaultAbiCoder().encode(
-        ['address', 'bytes'],
-        [BEACON_ADDRESS, initData]
-      )
-
-      // 3. Construct the full bytecode for deployment
-      const creationCodeBytes = new Uint8Array(
-        BEACON_PROXY_CREATION_CODE.slice(2).match(/.{2}/g)!.map(byte => parseInt(byte, 16))
-      )
-      const fullBytecode = ethers.concat([creationCodeBytes, constructorArgs])
-
-      // 4. Compute the CREATE2 address
-      const predictedAddress = ethers.getCreate2Address(
-        factoryAddress,
-        salt,
-        ethers.keccak256(fullBytecode)
-      )
-
-      return predictedAddress
-    } catch (error) {
-      console.error('Error calculating vault address:', error)
-      return ''
     }
-  }, [vaultOwner, chainId])
+
+    const isLoading = isLoadingExisting || isLoadingPredicted
+
+    if (isLoading) {
+      return {
+        vaultAddress: '',
+        predictedAddress: '',
+        existingVault: '',
+        hasVault: false,
+        isDeployed: false,
+        isLoading: true,
+        isError: false,
+        errorMessage: '',
+      }
+    }
+
+    if (isError && !hasDeployedVault) {
+      return {
+        vaultAddress: '',
+        predictedAddress: '',
+        existingVault: '',
+        hasVault: false,
+        isDeployed: false,
+        isLoading: false,
+        isError: true,
+        errorMessage: 'Failed to predict vault address',
+      }
+    }
+    
+    const finalPredictedAddress = (predictedAddress || '') as string;
+    const finalExistingVault = (existingVault || '') as string;
+    const vaultAddress = hasDeployedVault ? finalExistingVault : finalPredictedAddress
+
+    return {
+      vaultAddress,
+      predictedAddress: finalPredictedAddress,
+      existingVault: finalExistingVault,
+      hasVault: hasDeployedVault,
+      isDeployed: hasDeployedVault,
+      isLoading: false,
+      isError: false,
+      errorMessage: '',
+    }
+  }, [
+    vaultOwner,
+    chainId,
+    factoryAddress,
+    factoryDeployed,
+    predictedAddress,
+    existingVault,
+    isLoadingExisting,
+    isLoadingPredicted,
+    isError,
+    hasDeployedVault
+  ])
 
   return {
-    vaultAddress,
-    // For backward compatibility
-    address: vaultAddress
+    // Main interface
+    ...vaultInfo,
+
+    // Backward compatibility
+    address: vaultInfo.vaultAddress,
+
+    // Additional useful info
+    factoryAddress,
+    factoryDeployed,
+
+    // Cross-chain consistency info
+    isDeterministic: true,
+    isUniversal: factoryDeployed, // Will be same address on all deployed chains
   }
 }
 
-export { useVaultAddress } 
+export { useVaultAddress }
+
+/**
+ * Hook to check if a user has a vault deployed (simplified version)
+ */
+export const useHasVault = (userAddress: string | undefined, chainId: number) => {
+  const factoryAddress = VAULT_FACTORY_ADDRESS
+  const factoryDeployed = isFactoryDeployed(chainId)
+
+  const { data: hasVault, isLoading } = useReadContract({
+    address: factoryAddress,
+    abi: VAULT_FACTORY_ABI,
+    functionName: 'hasVault',
+    args: userAddress ? [userAddress as `0x${string}`] : undefined,
+    chainId,
+    query: {
+      enabled: !!(userAddress && factoryAddress && factoryDeployed),
+      staleTime: 30_000,
+    },
+  })
+
+  return {
+    hasVault: !!hasVault,
+    isLoading,
+    factoryDeployed,
+  }
+}
+
+/**
+ * Hook to get vault address across multiple chains (for cross-chain display)
+ */
+export const useVaultAddressMultichain = (vaultOwner: string | undefined) => {
+  const arbitrumVault = useVaultAddress(vaultOwner, 42161)
+  const coreVault = useVaultAddress(vaultOwner, 1116)
+
+  return useMemo(() => {
+    const vaults = [
+      { chainId: 42161, chainName: 'Arbitrum', ...arbitrumVault },
+      { chainId: 1116, chainName: 'Core', ...coreVault },
+    ].filter(vault => vault.factoryDeployed)
+
+    // Check if addresses are consistent across chains (they should be!)
+    const addresses = vaults.map(v => v.predictedAddress).filter(Boolean)
+    const isConsistent = addresses.length > 1 ? addresses.every(addr => addr === addresses[0]) : true
+
+    return {
+      vaults,
+      isConsistent,
+      universalAddress: addresses[0] || '',
+      deployedChains: vaults.filter(v => v.isDeployed).map(v => ({ chainId: v.chainId, chainName: v.chainName })),
+    }
+  }, [arbitrumVault, coreVault])
+} 

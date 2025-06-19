@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useAccount, useSignMessage } from 'wagmi'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 import Image from 'next/image'
 
 export const DEMAI_AUTH_MESSAGE = `Welcome to demAI!
@@ -115,16 +116,15 @@ const DemaiAuthHandler: React.FC<DemaiAuthHandlerProps> = ({ onSignatureUpdate }
   // Don't render anything until mounted
   if (!mounted) return null
 
-  // Don't show anything if wallet is not connected (RainbowKit handles connection)
-  if (!isConnected || !address) return null
-
-  const hasValidSignature = hasValidSignatureForAddress(address)
-
-  // Don't show anything if user already has valid signature
-  if (hasValidSignature) return null
+  // If wallet is connected, check if user has valid signature
+  if (isConnected && address) {
+    const hasValidSignature = hasValidSignatureForAddress(address)
+    // Don't show anything if user already has valid signature
+    if (hasValidSignature) return null
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md">
       {/* Animated background effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent" />
@@ -178,35 +178,68 @@ const DemaiAuthHandler: React.FC<DemaiAuthHandlerProps> = ({ onSignatureUpdate }
           )}
 
           <p className="mb-8 text-lg leading-relaxed text-gray-300">
-            Please sign the message to access the demAI platform.
+            {!isConnected 
+              ? 'Connect your wallet to access the demAI platform.'
+              : 'Please sign the message to access the demAI platform.'
+            }
           </p>
 
           <div className="w-full space-y-6">
-            <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 backdrop-blur-sm">
-              <p className="font-medium text-green-400">✓ Wallet Connected</p>
-              <p className="mt-1 text-sm text-gray-300">{formatAddress(address!)}</p>
-            </div>
+            {isConnected && address ? (
+              <>
+                <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 backdrop-blur-sm">
+                  <p className="font-medium text-green-400">✓ Wallet Connected</p>
+                  <p className="mt-1 text-sm text-gray-300">{formatAddress(address)}</p>
+                </div>
 
-            <button
-              onClick={handleSignMessage}
-              disabled={isSigningMessage}
-              className="group relative w-full overflow-hidden rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-pink-500/20 p-4 transition-all duration-300 hover:border-purple-400/50 hover:from-purple-500/30 hover:to-pink-500/30"
-            >
-              {/* Button glow effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-400/10 to-pink-400/10 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
+                <button
+                  onClick={handleSignMessage}
+                  disabled={isSigningMessage}
+                  className="group relative w-full overflow-hidden rounded-xl border border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-pink-500/20 p-4 transition-all duration-300 hover:border-purple-400/50 hover:from-purple-500/30 hover:to-pink-500/30"
+                >
+                  {/* Button glow effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400/10 to-pink-400/10 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
 
-              <span className="relative z-10 font-medium tracking-wide text-white">
-                {isSigningMessage ? 'Signing...' : 'Sign Message to Continue'}
-              </span>
+                  <span className="relative z-10 font-medium tracking-wide text-white">
+                    {isSigningMessage ? 'Signing...' : 'Sign Message to Continue'}
+                  </span>
 
-              {/* Animated border */}
-              <div
-                className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400/30 via-pink-400/30 to-purple-400/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                style={{ padding: '1px' }}
-              >
-                <div className="h-full w-full rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20" />
+                  {/* Animated border */}
+                  <div
+                    className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400/30 via-pink-400/30 to-purple-400/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                    style={{ padding: '1px' }}
+                  >
+                    <div className="h-full w-full rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20" />
+                  </div>
+                </button>
+              </>
+            ) : (
+              <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 backdrop-blur-sm">
+                <ConnectButton.Custom>
+                  {({ openConnectModal }) => (
+                    <button 
+                      onClick={openConnectModal}
+                      className="group relative w-full overflow-hidden rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 p-4 transition-all duration-300 hover:border-blue-400/50 hover:from-blue-500/30 hover:to-cyan-500/30"
+                    >
+                      {/* Button glow effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 to-cyan-400/10 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
+                      
+                      <span className="relative z-10 font-medium tracking-wide text-white">
+                        Connect Wallet
+                      </span>
+
+                      {/* Animated border */}
+                      <div
+                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400/30 via-cyan-400/30 to-blue-400/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                        style={{ padding: '1px' }}
+                      >
+                        <div className="h-full w-full rounded-xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20" />
+                      </div>
+                    </button>
+                  )}
+                </ConnectButton.Custom>
               </div>
-            </button>
+            )}
           </div>
         </div>
       </div>

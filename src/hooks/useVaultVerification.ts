@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { useAccount, useChainId, useReadContract } from 'wagmi'
 import { useAppStore } from '../store'
 import { VAULT_FACTORY_ADDRESS, VAULT_FACTORY_ABI } from '../config/tokens'
@@ -16,14 +16,21 @@ export function useVaultVerification(enabled: boolean = true): UseVaultVerificat
   const { address } = useAccount()
   const chainId = useChainId()
   
-  const {
-    getUserVault,
-    setUserVault,
-    getVaultQueryStatus,
-    setVaultQueryStatus,
-    shouldQueryVault,
-    clearVaultCache,
-  } = useAppStore()
+  // Use stable selectors to avoid re-renders
+  const getUserVault = useAppStore((state) => state.getUserVault)
+  const setUserVault = useAppStore((state) => state.setUserVault)
+  const getVaultQueryStatus = useAppStore((state) => state.getVaultQueryStatus)
+  const setVaultQueryStatus = useAppStore((state) => state.setVaultQueryStatus)
+  const shouldQueryVault = useAppStore((state) => state.shouldQueryVault)
+  const clearVaultCache = useAppStore((state) => state.clearVaultCache)
+  
+  // Track processed states to avoid infinite loops
+  const processedStateRef = useRef<string>('')
+  
+  // Reset processed state when key parameters change
+  useEffect(() => {
+    processedStateRef.current = ''
+  }, [address, chainId, enabled])
 
   // Get factory address for current chain
   const factoryAddress = VAULT_FACTORY_ADDRESS
@@ -53,8 +60,15 @@ export function useVaultVerification(enabled: boolean = true): UseVaultVerificat
   useEffect(() => {
     if (!address || !factoryAddress) return
 
+    // Create a state key to track what we've processed
+    const stateKey = `${chainId}-${address}-${contractIsLoading}-${contractVaultAddress}-${contractIsError}-${queryStatus}`
+    
+    // Skip if we've already processed this state
+    if (processedStateRef.current === stateKey) return
+    
     if (contractIsLoading && queryStatus !== 'loading') {
       setVaultQueryStatus(chainId, address, 'loading')
+      processedStateRef.current = stateKey
     } else if (!contractIsLoading && contractVaultAddress !== undefined) {
       // Convert zero address to null for cleaner state management
       const vaultAddress = contractVaultAddress === '0x0000000000000000000000000000000000000000' 
@@ -63,8 +77,10 @@ export function useVaultVerification(enabled: boolean = true): UseVaultVerificat
       
       setUserVault(chainId, address, vaultAddress)
       setVaultQueryStatus(chainId, address, 'success')
+      processedStateRef.current = stateKey
     } else if (contractIsError && queryStatus !== 'error') {
       setVaultQueryStatus(chainId, address, 'error')
+      processedStateRef.current = stateKey
     }
   }, [
     address,
@@ -74,8 +90,7 @@ export function useVaultVerification(enabled: boolean = true): UseVaultVerificat
     contractIsLoading,
     contractIsError,
     queryStatus,
-    setUserVault,
-    setVaultQueryStatus,
+    // Removed setUserVault and setVaultQueryStatus from dependencies to prevent infinite loops
   ])
 
   // Auto-query when conditions change
@@ -90,13 +105,13 @@ export function useVaultVerification(enabled: boolean = true): UseVaultVerificat
       setVaultQueryStatus(chainId, address, 'idle')
       contractRefetch()
     }
-  }, [address, chainId, setVaultQueryStatus, contractRefetch])
+  }, [address, chainId, contractRefetch])
 
   const clearCache = useCallback(() => {
     if (address) {
       clearVaultCache(chainId, address)
     }
-  }, [address, chainId, clearVaultCache])
+  }, [address, chainId])
 
   // Determine final state
   const vaultAddress = cachedVaultAddress

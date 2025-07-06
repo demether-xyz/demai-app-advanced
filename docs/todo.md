@@ -1,4 +1,4 @@
+-fix refresh button
 - swap asset in Core
-- connect to FE
 - automation: refresh based on yield
 - notifications

@@ -197,8 +197,6 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
     if (isDeploymentSuccess) {
       // Clear vault cache to trigger re-verification
       clearVaultCache()
-      // Reset any form state if needed
-      console.log('Vault deployed successfully! Hash:', deployVaultHash)
     }
   }, [isDeploymentSuccess, clearVaultCache, deployVaultHash])
 
@@ -207,7 +205,6 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
     if (isApprovalSuccess) {
       // Refetch token balances and approvals to update the UI
       refetchTokens()
-      console.log('Token approval successful! Hash:', approvalHash)
     }
   }, [isApprovalSuccess, refetchTokens, approvalHash])
 
@@ -222,7 +219,6 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
       emit('app.portfolio.refresh')
       // Reset form
       setAmount('')
-      console.log('Deposit successful! Hash:', depositHash)
     }
   }, [isDepositSuccess, refetchTokens, refetchVaultTokens, emit, depositHash])
 
@@ -237,7 +233,6 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
       emit('app.portfolio.refresh')
       // Reset form
       setAmount('')
-      console.log('Withdrawal successful! Hash:', withdrawHash)
     }
   }, [isWithdrawSuccess, refetchTokens, refetchUserTokens, emit, withdrawHash])
 

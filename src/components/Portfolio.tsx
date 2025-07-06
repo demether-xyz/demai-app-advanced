@@ -2,8 +2,9 @@ import React from 'react'
 import { usePortfolio } from '../hooks/usePortfolio'
 import { useAccount } from 'wagmi'
 import { useAuth } from '../hooks/useAuth'
+import TokenIcon from './TokenIcon'
 
-export interface PortfolioData {
+export interface PortfolioCardData {
   id: string
   title: string
   color: string
@@ -24,8 +25,11 @@ export interface PortfolioMetrics {
   maxDrawdown: number
 }
 
+
 // Portfolio card content for collapsed state
-export const getPortfolioCardContent = (metrics: PortfolioMetrics): React.ReactNode => {
+export const getPortfolioCardContent = (metrics: PortfolioMetrics, portfolioData?: any): React.ReactNode => {
+  const safePortfolioData = portfolioData || { summary: { active_strategies: [], active_chains: [] }, strategies: {} }
+  
   return (
     <div>
       <div className="mb-1 text-base font-medium text-slate-200">
@@ -33,8 +37,41 @@ export const getPortfolioCardContent = (metrics: PortfolioMetrics): React.ReactN
       </div>
       <div className="text-sm text-slate-400">Total Portfolio Value</div>
       <div className="mt-1 text-xs text-emerald-400">
-        ↗ +${Math.abs(metrics.weeklyChange).toLocaleString()} (7d)
+        +${Math.abs(metrics.weeklyChange).toLocaleString()} (7d)
       </div>
+      
+      {/* Strategy Summary */}
+      {safePortfolioData.strategies && Object.keys(safePortfolioData.strategies).length > 0 && (
+        <div className="mt-3 space-y-1">
+          <div className="text-xs font-medium text-slate-300">Active Strategies:</div>
+          {Object.entries(safePortfolioData.strategies).slice(0, 2).map(([key, strategy]: [string, any]) => (
+            <div key={key} className="flex items-center justify-between text-xs">
+              <span className="text-blue-400 capitalize">
+                {strategy.protocol}
+              </span>
+              <span className="text-emerald-400">
+                ${strategy.total_value_usd?.toLocaleString() || '0'}
+              </span>
+            </div>
+          ))}
+          {Object.keys(safePortfolioData.strategies).length > 2 && (
+            <div className="text-xs text-slate-400">
+              +{Object.keys(safePortfolioData.strategies).length - 2} more
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Multi-Chain Summary */}
+      {safePortfolioData.summary?.active_chains && safePortfolioData.summary.active_chains.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {safePortfolioData.summary.active_chains.map((chain: string) => (
+            <span key={chain} className="inline-flex items-center rounded-full bg-slate-800/50 px-2 py-0.5 text-xs text-slate-300">
+              {chain}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -43,34 +80,21 @@ export const getPortfolioCardContent = (metrics: PortfolioMetrics): React.ReactN
 export const getPortfolioExpandedContent = (metrics: PortfolioMetrics, portfolioData: any): React.ReactNode => {
   // Ensure portfolioData exists and has default values
   const safePortfolioData = portfolioData || {
-    holdings: [],
-    total_value_usd: 0,
-    active_strategies: [],
-    tokens_count: 0,
-    chains_count: 0,
-    strategy_count: 0
+    chains: {},
+    strategies: {},
+    summary: { active_chains: [], active_strategies: [], total_tokens: 0 },
+    total_value_usd: 0
   }
 
-  // Calculate actual asset allocation from holdings
-  const defiValue = safePortfolioData.holdings
-    ?.filter((h: any) => h.type === 'strategy')
-    .reduce((sum: number, h: any) => sum + h.value_usd, 0) || 0
-  
-  const tokenValue = safePortfolioData.holdings
-    ?.filter((h: any) => h.type === 'token')
-    .reduce((sum: number, h: any) => sum + h.value_usd, 0) || 0
-  
-  const lpValue = safePortfolioData.holdings
-    ?.filter((h: any) => h.type === 'lp')
-    .reduce((sum: number, h: any) => sum + h.value_usd, 0) || 0
-
-  const totalValue = safePortfolioData.total_value_usd || 0
-  const defiPercent = totalValue > 0 ? (defiValue / totalValue) * 100 : 0
-  const tokenPercent = totalValue > 0 ? (tokenValue / totalValue) * 100 : 0
-  const lpPercent = totalValue > 0 ? (lpValue / totalValue) * 100 : 0
+  const chains = Object.entries(safePortfolioData.chains || {});
+  const strategies = Object.entries(safePortfolioData.strategies || {});
+  const chains_count = Object.keys(safePortfolioData.chains || {}).length;
+  const tokens_count = safePortfolioData.summary?.total_tokens || 0;
+  const strategy_count = Object.keys(safePortfolioData.strategies || {}).length;
 
   return (
     <div className="space-y-6">
+      {/* Portfolio Overview Metrics */}
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg bg-slate-800/50 p-4">
           <div className="mb-1 text-xl font-medium text-slate-200">
@@ -78,7 +102,7 @@ export const getPortfolioExpandedContent = (metrics: PortfolioMetrics, portfolio
           </div>
           <div className="text-sm text-slate-400">Total Value</div>
           <div className="mt-1 text-xs text-emerald-400">
-            ↗ +${Math.abs(metrics.weeklyChange).toLocaleString()} (7d)
+            +${Math.abs(metrics.weeklyChange).toLocaleString()} (7d)
           </div>
         </div>
         <div className="rounded-lg bg-slate-800/50 p-4">
@@ -99,90 +123,121 @@ export const getPortfolioExpandedContent = (metrics: PortfolioMetrics, portfolio
         </div>
       </div>
 
-      <div className="space-y-3">
-        <h4 className="font-medium text-slate-200">Asset Allocation</h4>
-        <div className="space-y-2">
-          {defiValue > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="flex items-center text-sm text-slate-300">
-                <div className="mr-2 h-3 w-3 rounded-full bg-purple-400"></div>
-                Strategy Positions
-              </span>
-              <span className="text-slate-200">
-                {defiPercent.toFixed(1)}% (${defiValue.toLocaleString()})
-              </span>
+      {/* Chain Holdings Section */}
+      {chains.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+            <h4 className="font-medium text-slate-200">
+              Holdings by Chain ({chains.length} chains)
+            </h4>
+            <div className="text-sm text-blue-400">
+              {safePortfolioData.summary?.total_tokens || 0} tokens total
             </div>
-          )}
-          {tokenValue > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="flex items-center text-sm text-slate-300">
-                <div className="mr-2 h-3 w-3 rounded-full bg-blue-400"></div>
-                Token Holdings
-              </span>
-              <span className="text-slate-200">
-                {tokenPercent.toFixed(1)}% (${tokenValue.toLocaleString()})
-              </span>
-            </div>
-          )}
-          {lpValue > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="flex items-center text-sm text-slate-300">
-                <div className="mr-2 h-3 w-3 rounded-full bg-emerald-400"></div>
-                LP Positions
-              </span>
-              <span className="text-slate-200">
-                {lpPercent.toFixed(1)}% (${lpValue.toLocaleString()})
-              </span>
-            </div>
-          )}
-          {totalValue === 0 && (
-            <div className="text-sm text-slate-400">No assets found</div>
-          )}
-        </div>
-      </div>
-
-              <div className="space-y-3">
-        <h4 className="font-medium text-slate-200">Active Strategies</h4>
-        <div className="space-y-2">
-          {safePortfolioData.active_strategies?.length > 0 ? (
-            safePortfolioData.active_strategies.map((strategy: any, index: number) => (
-              <div key={index} className="flex items-center justify-between rounded-lg bg-slate-800/30 p-3">
-                <div>
-                  <div className="text-sm font-medium text-slate-200">{strategy.name || 'Strategy'}</div>
-                  <div className="text-xs text-slate-400">{strategy.protocol || 'Unknown Protocol'}</div>
+          </div>
+          
+          {chains.map(([chainName, chainData]: [string, any]) => (
+            <div key={chainName} className="rounded-lg bg-slate-800/30 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center">
+                  <div>
+                    <h5 className="font-medium text-slate-200">{chainName}</h5>
+                    <div className="text-xs text-slate-400">
+                      {Object.keys(chainData.tokens || {}).length} tokens, {Object.keys(chainData.strategies || {}).length} strategies
+                    </div>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium text-emerald-400">
-                    ${(strategy.value_usd || 0).toLocaleString()}
+                  <div className="font-medium text-blue-400">
+                    ${chainData.total_value_usd?.toLocaleString() || '0'}
                   </div>
-                  <div className="text-xs text-slate-400">
-                    {strategy.apy ? `${strategy.apy.toFixed(1)}% APY` : 'APY N/A'}
-                  </div>
+                  <div className="text-xs text-slate-400">Chain Total</div>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="text-sm text-slate-400">No active strategies</div>
-          )}
-        </div>
-      </div>
 
+              {/* Vault Token Holdings */}
+              {Object.keys(chainData.tokens || {}).length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <h6 className="text-sm font-medium text-slate-300 mb-2">
+                    Vault Holdings ({Object.keys(chainData.tokens).length} tokens)
+                  </h6>
+                  <div className="grid gap-2">
+                    {Object.entries(chainData.tokens).map(([symbol, token]: [string, any]) => (
+                      <div key={symbol} className="flex items-center justify-between text-sm rounded-lg bg-slate-900/50 p-3 hover:bg-slate-900/70 transition-colors">
+                        <div className="flex items-center">
+                          <TokenIcon symbol={symbol} className="w-8 h-8 mr-2" />
+                          <div>
+                            <div className="font-mono text-slate-200">{symbol}</div>
+                            <div className="text-xs text-slate-400">In Vault</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium text-slate-200">{token.balance?.toFixed(4) || '0'}</div>
+                          <div className="text-xs text-emerald-400">${token.value_usd?.toLocaleString() || '0'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Chain Strategy Positions */}
+              {Object.keys(chainData.strategies || {}).length > 0 && (
+                <div className="space-y-2">
+                  <h6 className="text-sm font-medium text-slate-300 mb-2">Strategy Positions</h6>
+                  {Object.entries(chainData.strategies).map(([strategyKey, strategy]: [string, any]) => (
+                    <div key={strategyKey} className="rounded-lg bg-slate-900/50 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium text-slate-200 capitalize text-sm">
+                          {strategy.protocol} - {strategy.strategy.replace('_', ' ')}
+                        </div>
+                        <div className="text-sm text-emerald-400">
+                          ${strategy.total_value_usd?.toLocaleString() || '0'}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        {Object.entries(strategy.tokens || {}).map(([tokenSymbol, token]: [string, any]) => (
+                          <div key={tokenSymbol} className="flex items-center justify-between text-xs">
+                            <div className="flex items-center">
+                              <TokenIcon symbol={tokenSymbol} className="w-5 h-5 mr-2" />
+                              <div className="font-mono text-slate-300">{tokenSymbol}</div>
+                            </div>
+                            <div className='text-right'>
+                              <div className="font-medium text-slate-200">{token.balance?.toFixed(4) || '0'}</div>
+                              <div className="text-slate-400">${token.value_usd?.toLocaleString() || '0'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {Object.keys(chainData.tokens || {}).length === 0 && Object.keys(chainData.strategies || {}).length === 0 && (
+                <div className="text-sm text-slate-400">No assets on this chain.</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Portfolio Stats */}
       <div className="space-y-3">
         <h4 className="font-medium text-slate-200">Portfolio Stats</h4>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-lg bg-slate-800/30 p-3">
             <span className="block text-slate-400">Total Assets</span>
-            <div className="font-medium text-blue-400">{safePortfolioData.tokens_count || 0}</div>
+            <div className="font-medium text-blue-400">{tokens_count || 0}</div>
             <div className="text-xs text-slate-400">Tokens</div>
           </div>
           <div className="rounded-lg bg-slate-800/30 p-3">
             <span className="block text-slate-400">Chains</span>
-            <div className="font-medium text-emerald-400">{safePortfolioData.chains_count || 0}</div>
+            <div className="font-medium text-emerald-400">{chains_count || 0}</div>
             <div className="text-xs text-slate-400">Networks</div>
           </div>
           <div className="rounded-lg bg-slate-800/30 p-3">
             <span className="block text-slate-400">Strategies</span>
-            <div className="font-medium text-purple-400">{safePortfolioData.strategy_count || 0}</div>
+            <div className="font-medium text-purple-400">{strategy_count || 0}</div>
             <div className="text-xs text-slate-400">Active</div>
           </div>
           <div className="rounded-lg bg-slate-800/30 p-3">
@@ -192,17 +247,28 @@ export const getPortfolioExpandedContent = (metrics: PortfolioMetrics, portfolio
           </div>
         </div>
       </div>
+
+      {/* Empty State */}
+      {chains.length === 0 && strategies.length === 0 && (
+        <div className="text-center py-8">
+          <div className="text-slate-400 mb-2">No assets found</div>
+          <div className="text-sm text-slate-400">Your portfolio will appear here once you have assets or active strategies.</div>
+        </div>
+      )}
     </div>
   )
 }
 
 // Convert real portfolio data to Portfolio component metrics
-export const useRealPortfolioMetrics = (): PortfolioMetrics => {
+export const useRealPortfolioMetrics = (portfolioData?: any): PortfolioMetrics => {
+  // Use passed portfolioData if available, otherwise fetch it
   const { isConnected } = useAccount()
   const { hasValidSignature } = useAuth()
-  const { portfolioData } = usePortfolio(isConnected && hasValidSignature)
+  const { portfolioData: hookPortfolioData } = usePortfolio(isConnected && hasValidSignature)
+  
+  const actualPortfolioData = portfolioData || hookPortfolioData
 
-  if (portfolioData.isLoading || portfolioData.error || portfolioData.total_value_usd === 0) {
+  if (actualPortfolioData.isLoading || actualPortfolioData.error) {
     return {
       totalValue: 0,
       dailyChange: 0,
@@ -216,32 +282,59 @@ export const useRealPortfolioMetrics = (): PortfolioMetrics => {
     }
   }
 
+  // Handle case where total_value_usd is 0 or very small but we still have data
+  if (!actualPortfolioData.total_value_usd && Object.keys(actualPortfolioData.chains || {}).length === 0) {
+    return {
+      totalValue: 0,
+      dailyChange: 0,
+      weeklyChange: 0,
+      avgAPY: 0,
+      dailyYield: 0,
+      monthlyYield: 0,
+      riskScore: 0,
+      diversificationScore: 0,
+      maxDrawdown: 0,
+    }
+  }
+
+  const { chains, total_value_usd, summary, strategies } = actualPortfolioData;
+  const chainsData = Object.values(chains || {});
+
+  const tokens_count = summary?.total_tokens || 0;
+  
+  const strategy_count = Object.keys(strategies || {}).length;
+
+  const strategy_value_usd = Object.values(strategies || {}).reduce((sum: number, s: any) => sum + s.total_value_usd, 0);
+  
+  const chains_count = chainsData.length;
+
+
   // Calculate estimated APY based on strategy value (simplified calculation)
-  const estimatedAPY = portfolioData.strategy_value_usd > 0 ? 
-    ((portfolioData.strategy_value_usd / portfolioData.total_value_usd) * 18.5) + 3.2 : 5.2
+  const estimatedAPY = strategy_value_usd > 0 && total_value_usd > 0 ? 
+    ((strategy_value_usd / total_value_usd) * 18.5) + 3.2 : 5.2
 
   // Calculate daily yield based on APY
-  const dailyYield = (portfolioData.total_value_usd * estimatedAPY / 100) / 365
+  const dailyYield = (total_value_usd * estimatedAPY / 100) / 365
 
   return {
-    totalValue: portfolioData.total_value_usd,
+    totalValue: total_value_usd,
     dailyChange: dailyYield, // Use daily yield as daily change for now
     weeklyChange: dailyYield * 7, // Weekly change based on daily yield
     avgAPY: estimatedAPY,
     dailyYield: dailyYield,
     monthlyYield: dailyYield * 30,
-    riskScore: portfolioData.strategy_count > 0 ? 6.8 : 8.2, // Lower risk with strategies
-    diversificationScore: Math.min(9.5, portfolioData.tokens_count * 1.2 + portfolioData.chains_count * 0.8),
-    maxDrawdown: portfolioData.strategy_count > 0 ? -8.4 : -15.2, // Better drawdown with strategies
+    riskScore: strategy_count > 0 ? 6.8 : 8.2, // Lower risk with strategies
+    diversificationScore: Math.min(9.5, tokens_count * 1.2 + chains_count * 0.8),
+    maxDrawdown: strategy_count > 0 ? -8.4 : -15.2, // Better drawdown with strategies
   }
 }
 
 // Portfolio card content component that uses real data
 export const RealPortfolioCardContent: React.FC = () => {
-  const realMetrics = useRealPortfolioMetrics()
   const { isConnected } = useAccount()
   const { hasValidSignature } = useAuth()
   const { portfolioData } = usePortfolio(isConnected && hasValidSignature)
+  const realMetrics = useRealPortfolioMetrics(portfolioData)
 
   if (portfolioData.isLoading) {
     return (
@@ -261,11 +354,11 @@ export const RealPortfolioCardContent: React.FC = () => {
     )
   }
 
-  return <>{getPortfolioCardContent(realMetrics)}</>
+  return <>{getPortfolioCardContent(realMetrics, portfolioData)}</>
 }
 
 // Portfolio stack data factory using real data
-export const createRealPortfolioStackData = (): PortfolioData => {
+export const createRealPortfolioStackData = (): PortfolioCardData => {
   return {
     id: 'portfolio',
     title: 'Portfolio Overview',
@@ -289,7 +382,7 @@ const Portfolio: React.FC<PortfolioProps> = ({
   const { isConnected } = useAccount()
   const { hasValidSignature } = useAuth()
   const { portfolioData } = usePortfolio(isConnected && hasValidSignature)
-  const realMetrics = useRealPortfolioMetrics()
+  const realMetrics = useRealPortfolioMetrics(portfolioData)
 
   if (portfolioData.isLoading) {
     return (
@@ -321,7 +414,7 @@ const Portfolio: React.FC<PortfolioProps> = ({
   return (
     <div className={`rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-4 ${className}`}>
       <h3 className="mb-3 text-sm font-normal text-slate-200">Portfolio Overview</h3>
-      {getPortfolioCardContent(realMetrics)}
+      {getPortfolioCardContent(realMetrics, portfolioData)}
     </div>
   )
 }

@@ -1,11 +1,17 @@
 import React from 'react'
 import { Rnd } from 'react-rnd'
 import { getPortfolioExpandedContent, useRealPortfolioMetrics, defaultPortfolioMetrics } from './Portfolio'
+import { usePortfolio } from '../hooks/usePortfolio'
+import { useAccount } from 'wagmi'
+import { useAuth } from '../hooks/useAuth'
 
 // Portfolio content component that can use hooks
 const PortfolioExpandedContent: React.FC = () => {
-  const realMetrics = useRealPortfolioMetrics()
-  return <>{getPortfolioExpandedContent(realMetrics)}</>
+  const { isConnected } = useAccount()
+  const { hasValidSignature } = useAuth()
+  const { portfolioData } = usePortfolio(isConnected && hasValidSignature)
+  const realMetrics = useRealPortfolioMetrics(portfolioData)
+  return <>{getPortfolioExpandedContent(realMetrics, portfolioData)}</>
 }
 
 interface ExpandedCardProps {
@@ -412,9 +418,6 @@ const ExpandedCard: React.FC<ExpandedCardProps> = ({
 
           {/* Window Controls */}
           <div className="flex items-center space-x-3">
-            {/* AI Confidence */}
-            <div className="text-xs text-slate-400">AI: {aiPriority === 'high' ? '95%' : aiPriority === 'medium' ? '85%' : '75%'}</div>
-
             {!collapsed && (
               <button
                 className="rounded bg-slate-700/60 px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-600/60 hover:text-slate-200"

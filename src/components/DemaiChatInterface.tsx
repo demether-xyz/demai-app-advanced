@@ -267,14 +267,12 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
       let aiResponseText: string
       
       if (response.success && response.data) {
-        console.log('✅ Got API response:', response)
         const aiResponse = response.data
         aiResponseText = aiResponse.text
         
         // Open window if specified in JSON response
         if (aiResponse.windows && Array.isArray(aiResponse.windows)) {
           // First close all currently open windows
-          console.log('Closing all current windows before opening new ones')
           openWindow('close-all')
           
           // Then open new windows with a small delay to ensure close happens first
@@ -282,16 +280,13 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
           setTimeout(() => {
             windowsToOpen.forEach((windowId: string) => {
               if (AVAILABLE_WINDOW_IDS.includes(windowId)) {
-                console.log(`Opening window from API response: ${windowId}`)
                 openWindow(windowId)
               }
             })
           }, 100)
         }
         
-        console.log('✅ Got API response:', aiResponseText)
       } else {
-        console.log('❌ API failed:', response.error)
         aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'
       }
 
@@ -304,7 +299,6 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
 
       setMessages((prev) => [...prev, aiMessage])
     } catch (error) {
-      console.log('❌ API error:', error)
       const errorMessage: ChatMessage = {
         id: Date.now() + 1,
         sender: 'ai',
@@ -363,7 +357,6 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
           // Open window if specified in JSON response
           if (aiResponse.windows && Array.isArray(aiResponse.windows)) {
             // First close all currently open windows
-            console.log('Closing all current windows before opening new ones')
             openWindow('close-all')
             
             // Then open new windows with a small delay to ensure close happens first
@@ -371,16 +364,13 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
             setTimeout(() => {
               windowsToOpen.forEach((windowId: string) => {
                 if (AVAILABLE_WINDOW_IDS.includes(windowId)) {
-                  console.log(`Opening window from API response: ${windowId}`)
                   openWindow(windowId)
                 }
               })
             }, 100)
           }
           
-          console.log('✅ Got API response:', aiResponseText)
         } else {
-          console.log('❌ API failed:', response.error)
           aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'
         }
 
@@ -393,7 +383,6 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
 
         setMessages((prev) => [...prev, aiMessage])
       } catch (error) {
-        console.log('❌ API error:', error)
         const errorMessage: ChatMessage = {
           id: Date.now() + 1,
           sender: 'ai',

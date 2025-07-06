@@ -22,16 +22,17 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
 
   // Get current portfolio data from store
   const portfolioData = vaultAddress ? getPortfolioData(vaultAddress) : undefined
-
+  
   // Default empty portfolio state
   const defaultPortfolio: PortfolioData = {
     total_value_usd: 0,
-    strategy_value_usd: 0,
-    tokens_count: 0,
-    chains_count: 0,
-    strategy_count: 0,
-    active_strategies: [],
-    holdings: [],
+    chains: {},
+    strategies: {},
+    summary: {
+      active_chains: [],
+      active_strategies: [],
+      total_tokens: 0,
+    },
     isLoading: false,
     error: null,
   }
@@ -48,19 +49,12 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
     try {
       const result = await fetchPortfolioData(vaultAddr, force)
       if (result.success && result.data) {
-        // Calculate strategy value from holdings
-        const strategyValue = result.data.holdings
-          .filter(holding => holding.type === 'strategy')
-          .reduce((sum, holding) => sum + holding.value_usd, 0)
         
         const portfolioData: PortfolioData = {
           total_value_usd: result.data.total_value_usd,
-          strategy_value_usd: strategyValue,
-          tokens_count: result.data.tokens_count,
-          chains_count: result.data.chains_count,
-          strategy_count: result.data.strategy_count || 0,
-          active_strategies: result.data.active_strategies || [],
-          holdings: result.data.holdings || [],
+          chains: result.data.chains || {},
+          strategies: result.data.strategies || {},
+          summary: result.data.summary || { active_chains: [], active_strategies: [], total_tokens: 0 },
           isLoading: false,
           error: null,
           lastUpdated: Date.now(),

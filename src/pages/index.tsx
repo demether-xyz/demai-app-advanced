@@ -170,7 +170,7 @@ const DemaiPage = () => {
                           ? 'No vault deployed yet'
                           : portfolioData.error
                             ? 'Unable to load portfolio'
-                            : `Across ${portfolioData.chains_count} chains`
+                            : `Across ${Object.keys(portfolioData.chains || {}).length} chains`
                       }
                     </span>
                     {!portfolioData.isLoading && !isVaultLoading && hasVault && !portfolioData.error && (
@@ -195,26 +195,13 @@ const DemaiPage = () => {
                         ? 'Deploy a vault to start'
                         : portfolioData.error
                           ? 'Data unavailable'
-                          : portfolioData.strategy_count > 0
-                            ? `${portfolioData.tokens_count} tokens, ${portfolioData.strategy_count} strategies (${formatCurrency(portfolioData.strategy_value_usd)})`
-                            : `${portfolioData.tokens_count} tokens`
+                          : Object.keys(portfolioData.strategies || {}).length > 0
+                            ? `${portfolioData.summary?.total_tokens || 0} tokens, ${Object.keys(portfolioData.strategies || {}).length} strategies (${formatCurrency(Object.values(portfolioData.strategies || {}).reduce((sum, s) => sum + (s.total_value_usd || 0), 0))})`
+                            : `${portfolioData.summary?.total_tokens || 0} tokens`
                     }
                   </div>
                   
-                  {/* Active Strategies Display */}
-                  {!portfolioData.isLoading && !isVaultLoading && hasVault && !portfolioData.error && portfolioData.active_strategies.length > 0 && (
-                    <div className="mt-2 flex items-center text-xs font-medium text-blue-400">
-                      <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Active: {portfolioData.active_strategies.map(strategy => {
-                        switch(strategy) {
-                          case 'aave_v3': return 'Aave V3'
-                          default: return strategy
-                        }
-                      }).join(', ')}
-                    </div>
-                  )}
+
                 </div>
 
                 {/* AI Suggestions - DISABLED 
@@ -289,8 +276,19 @@ const DemaiPage = () => {
 
               {/* Running Automation Indicators - Scattered like target design - Dynamic from portfolio data */}
               {(() => {
-                // Get strategy holdings from portfolio data
-                const strategyHoldings = (portfolioData.holdings || []).filter((holding: PortfolioHolding) => holding.type === 'strategy')
+                // Get strategy holdings from portfolio data - extract from strategies object
+                const strategyHoldings = Object.values(portfolioData.strategies || {}).map(strategy => ({
+                  symbol: Object.keys(strategy.positions || {})[0] || 'UNKNOWN',
+                  name: `${strategy.protocol} ${strategy.strategy}`,
+                  chain_id: 42161, // Default to Arbitrum for now
+                  balance: 0,
+                  price_usd: 0,
+                  value_usd: strategy.total_value_usd,
+                  type: 'strategy',
+                  protocol: strategy.protocol,
+                  strategy: strategy.strategy,
+                  strategy_type: strategy.strategy
+                }))
                 
                 // Available positions for scattering indicators
                 const positions = [

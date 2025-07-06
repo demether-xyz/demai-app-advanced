@@ -30,14 +30,51 @@ export interface PortfolioHolding {
   strategy_type?: string
 }
 
+export interface PortfolioToken {
+  balance: number;
+  value_usd: number;
+}
+
+export interface PortfolioStrategyToken extends PortfolioToken {}
+
+export interface ChainStrategy {
+  protocol: string;
+  strategy: string;
+  tokens: Record<string, PortfolioStrategyToken>;
+}
+
+export interface ChainData {
+  chain_id: number;
+  total_value_usd: number;
+  tokens: Record<string, PortfolioToken>;
+  strategies: Record<string, ChainStrategy>;
+}
+
+export interface TopLevelStrategyPosition {
+    chain: string;
+    token: string;
+    balance: number;
+    value_usd: number;
+}
+
+export interface TopLevelStrategy {
+    protocol: string;
+    strategy: string;
+    total_value_usd: number;
+    positions: Record<string, TopLevelStrategyPosition>;
+}
+
+export interface PortfolioSummary {
+  active_chains: string[];
+  active_strategies: string[];
+  total_tokens: number;
+}
+
 export interface PortfolioData {
   total_value_usd: number
-  strategy_value_usd: number
-  tokens_count: number
-  chains_count: number
-  strategy_count: number
-  active_strategies: string[]
-  holdings: PortfolioHolding[]
+  chains: Record<string, ChainData>;
+  strategies: Record<string, TopLevelStrategy>;
+  summary: PortfolioSummary;
   isLoading: boolean
   error: string | null
   lastUpdated?: number

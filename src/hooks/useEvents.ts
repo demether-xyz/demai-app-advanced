@@ -16,7 +16,6 @@ export const useOpenWindow = () => {
   return (windowId: string) => {
     // Emit hierarchical event: app.openwindow.{windowId}
     emit(`app.openwindow.${windowId}`)
-    console.log(`Emitted window open event: app.openwindow.${windowId}`)
   }
 }
 

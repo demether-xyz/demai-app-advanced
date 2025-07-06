@@ -12,30 +12,8 @@ interface ApiResponse<T> {
   error?: string
 }
 
-interface PortfolioResponse {
-  success: boolean
-  data?: {
-    vault_address: string
-    total_value_usd: number
-    holdings: Array<{
-      symbol: string
-      name: string
-      chain_id: number
-      balance: number
-      price_usd: number
-      value_usd: number
-      type?: string
-      strategy?: string
-      protocol?: string
-      strategy_type?: string
-    }>
-    chains_count: number
-    tokens_count: number
-    strategy_count: number
-    active_strategies: string[]
-  }
-  error?: string
-}
+// This interface is not used anymore since we return the raw API response
+// The actual response structure matches PortfolioData from the store
 
 // Function to store authentication data to localStorage
 export const storeAuthData = (authData: { signature: string; message: string; address: string }): void => {

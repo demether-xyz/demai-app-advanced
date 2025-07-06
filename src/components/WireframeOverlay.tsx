@@ -928,14 +928,11 @@ const WireframeOverlay = () => {
 
       // Process all pending events in order
       pendingEvents.forEach(({ windowId, timestamp }) => {
-        console.log(`Processing window event: ${windowId} at ${timestamp}`)
         
         // Handle special 'close-all' command
         if (windowId === 'close-all') {
-          console.log('Closing all windows from close-all event')
           collapseAllWindows()
         } else if (!expandedWindowsRef.current.has(windowId)) {
-          console.log(`Opening window from hierarchical event: ${windowId}`)
           expandWindowCallback(windowId)
         }
         

@@ -6,6 +6,7 @@ import DashboardCard from './DashboardCard'
 import ExpandedCard from './ExpandedCard'
 import { useEvent } from '../hooks/useEvents'
 import { useAppStore } from '../store'
+import { createPortfolioStackData, defaultPortfolioMetrics } from './Portfolio'
 
 // Protocol Icons Component
 const ProtocolIcon = ({ name, className = 'w-4 h-4' }: { name: string; className?: string }): React.ReactElement => {
@@ -223,19 +224,7 @@ const WireframeOverlay = () => {
         </div>
       ),
     },
-    {
-      id: 'portfolio',
-      title: 'Portfolio Overview',
-      color: 'border-purple-500',
-      aiPriority: 'medium',
-      category: 'overview',
-      content: (
-        <div>
-          <div className="mb-1 text-base font-medium text-slate-200">$124,567</div>
-          <div className="text-sm text-slate-400">Total Portfolio Value</div>
-        </div>
-      ),
-    },
+    createPortfolioStackData(defaultPortfolioMetrics),
     {
       id: 'staking-rewards',
       title: 'ETH Staking Rewards',
@@ -719,7 +708,7 @@ const WireframeOverlay = () => {
   const [activeWindow, setActiveWindow] = useState<string | null>(null)
   const [aiMode, setAiMode] = useState<'analyzing' | 'optimizing' | 'monitoring'>('analyzing')
 
-  // Side panel states
+  // Side panel states - disabled
   const [leftPanelOpen, setLeftPanelOpen] = useState(false)
   const [rightPanelOpen, setRightPanelOpen] = useState(false)
 
@@ -1075,102 +1064,111 @@ const WireframeOverlay = () => {
         onCollapseAll={collapseAllWindows}
       />
 
-      {/* Always Visible Tab Buttons */}
-      <SideTabButton
-        isOpen={leftPanelOpen}
-        onClick={() => setLeftPanelOpen(!leftPanelOpen)}
-        side="left"
-        position="top-1/2"
-        openLabel="OPPORTUNITIES"
-        closedLabel="OPPORTUNITIES"
-        openColor="bg-green-600/80"
-        hoverColor="hover:bg-gray-700/80"
-        style={{
-          left: leftPanelOpen ? '320px' : '0px',
-          transition: 'left 0.3s ease-in-out',
-        }}
-      />
+      {/* Side Tab Buttons - Disabled */}
+      {false && (
+        <>
+          <SideTabButton
+            isOpen={leftPanelOpen}
+            onClick={() => setLeftPanelOpen(!leftPanelOpen)}
+            side="left"
+            position="top-1/2"
+            openLabel="OPPORTUNITIES"
+            closedLabel="OPPORTUNITIES"
+            openColor="bg-green-600/80"
+            hoverColor="hover:bg-gray-700/80"
+            style={{
+              left: leftPanelOpen ? '320px' : '0px',
+              transition: 'left 0.3s ease-in-out',
+            }}
+          />
 
-      <SideTabButton
-        isOpen={rightPanelOpen}
-        onClick={() => setRightPanelOpen(!rightPanelOpen)}
-        side="right"
-        position="top-2/3"
-        openLabel="RISK ANALYSIS"
-        closedLabel="RISK"
-        openColor="bg-red-600/80"
-        hoverColor="hover:bg-gray-700/80"
-        style={{
-          right: rightPanelOpen ? '320px' : '0px',
-          transition: 'right 0.3s ease-in-out',
-        }}
-      />
+          <SideTabButton
+            isOpen={rightPanelOpen}
+            onClick={() => setRightPanelOpen(!rightPanelOpen)}
+            side="right"
+            position="top-2/3"
+            openLabel="RISK ANALYSIS"
+            closedLabel="RISK"
+            openColor="bg-red-600/80"
+            hoverColor="hover:bg-gray-700/80"
+            style={{
+              right: rightPanelOpen ? '320px' : '0px',
+              transition: 'right 0.3s ease-in-out',
+            }}
+          />
+        </>
+      )}
 
-      {/* Left Side Panel - Opportunities */}
-      <div
-        className={`absolute top-0 bottom-0 left-0 z-40 transition-transform duration-300 ease-in-out ${leftPanelOpen ? 'translate-x-0' : '-translate-x-full'}`}
-      >
-        {/* Panel Content */}
-        <div
-          className="h-full w-80 overflow-x-hidden overflow-y-auto border-r border-gray-700/50 bg-black/70"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          <style jsx>{`
-            div::-webkit-scrollbar {
-              display: none;
-            }
-          `}</style>
-          <div className="space-y-3 p-4 pt-8">
-            {leftStackData.map((item, index) => (
-              <DashboardCard
-                key={item.id}
-                id={item.id}
-                title={item.title}
-                icon={item.icon}
-                color={item.color}
-                aiPriority={item.aiPriority}
-                category={item.category}
-                content={item.content}
-                isExpanded={windows.some((w) => w.id === item.id && w.position === 'center')}
-                onExpand={expandWindowCallback}
-              />
-            ))}
+      {/* Side Panels - Disabled */}
+      {false && (
+        <>
+          {/* Left Side Panel - Opportunities */}
+          <div
+            className={`absolute top-0 bottom-0 left-0 z-40 transition-transform duration-300 ease-in-out ${leftPanelOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          >
+            {/* Panel Content */}
+            <div
+              className="h-full w-80 overflow-x-hidden overflow-y-auto border-r border-gray-700/50 bg-black/70"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+              <div className="space-y-3 p-4 pt-8">
+                {leftStackData.map((item, index) => (
+                  <DashboardCard
+                    key={item.id}
+                    id={item.id}
+                    title={item.title}
+                    icon={item.icon}
+                    color={item.color}
+                    aiPriority={item.aiPriority}
+                    category={item.category}
+                    content={item.content}
+                    isExpanded={windows.some((w) => w.id === item.id && w.position === 'center')}
+                    onExpand={expandWindowCallback}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Right Side Panel - Risk & Alerts */}
-      <div
-        className={`absolute top-0 right-0 bottom-0 z-40 transition-transform duration-300 ease-in-out ${rightPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
-      >
-        {/* Panel Content */}
-        <div
-          className="h-full w-80 overflow-x-hidden overflow-y-auto border-l border-gray-700/50 bg-black/70"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          <style jsx>{`
-            div::-webkit-scrollbar {
-              display: none;
-            }
-          `}</style>
-          <div className="space-y-3 p-4 pt-8">
-            {rightStackData.map((item, index) => (
-              <DashboardCard
-                key={item.id}
-                id={item.id}
-                title={item.title}
-                icon={item.icon}
-                color={item.color}
-                aiPriority={item.aiPriority}
-                category={item.category}
-                content={item.content}
-                isExpanded={windows.some((w) => w.id === item.id && w.position === 'center')}
-                onExpand={expandWindowCallback}
-              />
-            ))}
+          {/* Right Side Panel - Risk & Alerts */}
+          <div
+            className={`absolute top-0 right-0 bottom-0 z-40 transition-transform duration-300 ease-in-out ${rightPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          >
+            {/* Panel Content */}
+            <div
+              className="h-full w-80 overflow-x-hidden overflow-y-auto border-l border-gray-700/50 bg-black/70"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <style jsx>{`
+                div::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+              <div className="space-y-3 p-4 pt-8">
+                {rightStackData.map((item, index) => (
+                  <DashboardCard
+                    key={item.id}
+                    id={item.id}
+                    title={item.title}
+                    icon={item.icon}
+                    color={item.color}
+                    aiPriority={item.aiPriority}
+                    category={item.category}
+                    content={item.content}
+                    isExpanded={windows.some((w) => w.id === item.id && w.position === 'center')}
+                    onExpand={expandWindowCallback}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* AI-Managed Windows - Only Center Windows */}
       {windows

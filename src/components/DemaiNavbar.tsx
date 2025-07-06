@@ -19,6 +19,7 @@ const DemaiNavbar: React.FC = () => {
       </div>
 
       {/* Center Section - Search Bar */}
+      {/*
       <div className="mx-8 max-w-md flex-1">
         <div className="relative">
           <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
@@ -29,15 +30,18 @@ const DemaiNavbar: React.FC = () => {
           />
         </div>
       </div>
+      */}
 
       {/* Right Section - Navigation Tabs and Controls */}
       <div className="flex items-center space-x-6">
         {/* Navigation Tabs */}
         <div className="flex items-center space-x-2 rounded-lg bg-gray-800/40 p-1">
           <button className="rounded-md bg-blue-600/80 px-4 py-2 text-sm text-white shadow-sm">Overview</button>
+          {/*
           <button className="rounded-md px-4 py-2 text-sm text-gray-400 transition-colors duration-200 hover:text-gray-200">
             Dashboard
           </button>
+          */}
           <button 
             onClick={() => emit('vault.open')}
             className="rounded-md px-4 py-2 text-sm text-gray-400 transition-colors duration-200 hover:text-gray-200"
@@ -48,12 +52,14 @@ const DemaiNavbar: React.FC = () => {
 
         {/* Right Controls */}
         <div className="flex items-center space-x-1">
+          {/*
           <button className="rounded-lg p-2 text-gray-400 transition-all duration-200 hover:bg-gray-700/50 hover:text-gray-200">
             <Cog6ToothIcon className="h-5 w-5" />
           </button>
           <button className="rounded-lg p-2 text-gray-400 transition-all duration-200 hover:bg-gray-700/50 hover:text-gray-200">
             <Bars3Icon className="h-5 w-5" />
           </button>
+          */}
           {/* Custom styled RainbowKit Connect Button */}
           <ConnectButton.Custom>
             {({

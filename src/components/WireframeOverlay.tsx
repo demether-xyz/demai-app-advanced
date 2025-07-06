@@ -6,7 +6,7 @@ import DashboardCard from './DashboardCard'
 import ExpandedCard from './ExpandedCard'
 import { useEvent } from '../hooks/useEvents'
 import { useAppStore } from '../store'
-import { createPortfolioStackData, defaultPortfolioMetrics } from './Portfolio'
+import { createRealPortfolioStackData } from './Portfolio'
 
 // Protocol Icons Component
 const ProtocolIcon = ({ name, className = 'w-4 h-4' }: { name: string; className?: string }): React.ReactElement => {
@@ -224,7 +224,7 @@ const WireframeOverlay = () => {
         </div>
       ),
     },
-    createPortfolioStackData(defaultPortfolioMetrics),
+    createRealPortfolioStackData(),
     {
       id: 'staking-rewards',
       title: 'ETH Staking Rewards',

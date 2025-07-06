@@ -5,6 +5,7 @@ alwaysApply: true
 ---
 # General
 
+- DON'T run build
 - We are building the UI/UX for the brand, generalize as you go from styles/global.css to reusable components
 - Front and Back end are running and reload automatically
 - Use clean and non-verbose code
@@ -12,4 +13,3 @@ alwaysApply: true
 - For Frontend use pnpm
 - Don't create README / documentation unless asked
 - DONT RUN any FE/BE, I will run them manually, as you change they refresh/reload. Can you use curl if needed
-- DONT try to build unless asked

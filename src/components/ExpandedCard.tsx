@@ -1,6 +1,12 @@
 import React from 'react'
 import { Rnd } from 'react-rnd'
-import { getPortfolioExpandedContent, defaultPortfolioMetrics } from './Portfolio'
+import { getPortfolioExpandedContent, useRealPortfolioMetrics, defaultPortfolioMetrics } from './Portfolio'
+
+// Portfolio content component that can use hooks
+const PortfolioExpandedContent: React.FC = () => {
+  const realMetrics = useRealPortfolioMetrics()
+  return <>{getPortfolioExpandedContent(realMetrics)}</>
+}
 
 interface ExpandedCardProps {
   id: string
@@ -100,7 +106,7 @@ const getDetailedContent = (id: string): React.ReactNode => {
         </div>
       </div>
     ),
-    portfolio: getPortfolioExpandedContent(defaultPortfolioMetrics),
+    portfolio: <PortfolioExpandedContent />,
     'risk-analysis': (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">

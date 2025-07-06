@@ -8,6 +8,7 @@ import { useVaultTokenBalances } from '../hooks/useVaultTokenBalances'
 import { useVaultAddress } from '../hooks/useVaultAddress'
 import { useEventEmitter } from '../hooks/useEvents'
 import { getTokensForChain, ERC20_ABI, VAULT_FACTORY_ADDRESS, VAULT_FACTORY_ABI, SUPPORTED_CHAINS, Chain } from '../config/tokens'
+import TokenIcon from './TokenIcon'
 
 interface VaultModalProps {
   isOpen: boolean
@@ -517,7 +518,10 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <span className="text-lg">{selectedToken?.icon || '🪙'}</span>
+                    <TokenIcon 
+                      symbol={selectedToken?.symbol || 'DEFAULT'} 
+                      className="w-6 h-6"
+                    />
                     <div>
                       <div className="font-medium">{selectedToken?.symbol || 'Select Token'}</div>
                       <div className="text-xs text-gray-400">{selectedToken?.name || 'No token selected'}</div>
@@ -544,7 +548,10 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            <span className="text-lg">{token.icon}</span>
+                            <TokenIcon 
+                              symbol={token.symbol} 
+                              className="w-6 h-6"
+                            />
                             <div>
                               <div className="font-medium text-white">{token.symbol}</div>
                               <div className="text-xs text-gray-400">{token.name}</div>

@@ -45,6 +45,7 @@ import CircularProgress from '@/components/CircularProgress'
 import WireframeOverlay from '@/components/WireframeOverlay'
 import AutomationIndicator from '@/components/AutomationIndicator'
 import VaultModal from '@/components/VaultModal'
+import StrategyTrigger from '@/components/StrategyTrigger'
 import { useSurfaceCard, useEvent, useEventEmitter } from '@/hooks/useEvents'
 import { useOpenWindow } from '@/hooks/useEvents'
 import { usePortfolio } from '@/hooks/usePortfolio'
@@ -55,12 +56,14 @@ const DemaiPage = () => {
   const { hasValidSignature } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [isVaultModalOpen, setIsVaultModalOpen] = useState(false)
+  const [isStrategyTriggerOpen, setIsStrategyTriggerOpen] = useState(false)
   
   // Use the portfolio hook instead of local state
   const { portfolioData, refreshPortfolio, isVaultLoading, hasVault, vaultAddress } = usePortfolio(isConnected && hasValidSignature)
   
   // Listen for vault modal events
   const vaultOpenEvent = useEvent('vault.open')
+  const strategyTriggerEvent = useEvent('strategy.trigger.open')
   const emit = useEventEmitter()
   const openWindow = useOpenWindow()
   
@@ -70,6 +73,13 @@ const DemaiPage = () => {
       setIsVaultModalOpen(true)
     }
   }, [vaultOpenEvent])
+
+  // Handle strategy trigger modal open event
+  useEffect(() => {
+    if (strategyTriggerEvent > 0) {
+      setIsStrategyTriggerOpen(true)
+    }
+  }, [strategyTriggerEvent])
 
   // Handle mounting state
   useEffect(() => {
@@ -272,6 +282,21 @@ const DemaiPage = () => {
                   </svg>
                   <span className="text-center text-xs font-medium text-white">Analyze Portfolio</span>
                 </div>
+
+                <div 
+                  onClick={() => emit('strategy.trigger.open')}
+                  className="flex h-28 w-28 cursor-pointer flex-col items-center justify-center rounded-xl bg-blue-600 p-5 transition-colors hover:bg-blue-700"
+                >
+                  <svg className="mb-2 h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                  <span className="text-center text-xs font-medium text-white">Trigger Strategy</span>
+                </div>
               </div>
 
               {/* Running Automation Indicators - Scattered like target design - Dynamic from portfolio data */}
@@ -411,6 +436,12 @@ const DemaiPage = () => {
         <VaultModal 
           isOpen={isVaultModalOpen} 
           onClose={() => setIsVaultModalOpen(false)} 
+        />
+
+        {/* Strategy Trigger Modal - Global overlay */}
+        <StrategyTrigger 
+          isOpen={isStrategyTriggerOpen} 
+          onClose={() => setIsStrategyTriggerOpen(false)} 
         />
       </div>
     </>

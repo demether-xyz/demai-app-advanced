@@ -69,7 +69,7 @@ const VAULT_ABI = [
   },
 ] as const
 
-type ViewType = 'portfolio' | 'vault' | 'strategy'
+type ViewType = 'portfolio' | 'vault' | 'strategy' | 'chat'
 
 const DemaiPage = () => {
   const { isConnected, address } = useAccount()
@@ -1237,22 +1237,32 @@ const DemaiPage = () => {
                       </svg>
                       <span className="text-sm font-medium text-white">Strategy</span>
                     </div>
+
+                    <div 
+                      onClick={() => setCurrentView('chat')}
+                      className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
+                        currentView === 'chat' ? 'bg-orange-700' : 'bg-orange-600 hover:bg-orange-700'
+                      }`}
+                    >
+                      <svg className="mr-2 h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      <span className="text-sm font-medium text-white">Chat Assistant</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Chat Interface Section - Takes remaining space */}
-                <div className="flex-1 pointer-events-none relative">
-                  <div className="pointer-events-auto absolute inset-0">
-                    <DemaiChatInterface />
-                  </div>
-                </div>
+
               </div>
 
               {/* Right Panel - Dynamic Content Based on Current View */}
-              <div className="flex-1 p-8 overflow-y-auto">
-                {currentView === 'portfolio' && <Portfolio expanded={true} className="h-full" />}
-                {currentView === 'vault' && <VaultComponent />}
-                {currentView === 'strategy' && <StrategyComponent />}
+              <div className="flex-1 overflow-hidden">
+                <div className="h-full p-8">
+                  {currentView === 'portfolio' && <Portfolio expanded={true} className="h-full" />}
+                  {currentView === 'vault' && <VaultComponent />}
+                  {currentView === 'strategy' && <StrategyComponent />}
+                  {currentView === 'chat' && <DemaiChatInterface mode="embedded" />}
+                </div>
               </div>
             </div>
           </div>

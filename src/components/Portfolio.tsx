@@ -404,9 +404,13 @@ const Portfolio: React.FC<PortfolioProps> = ({
 
   if (expanded) {
     return (
-      <div className={`rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-6 ${className}`}>
-        <h2 className="mb-4 text-lg font-medium text-slate-200">Portfolio Overview</h2>
-        {getPortfolioExpandedContent(realMetrics, portfolioData)}
+      <div className={`rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md overflow-hidden ${className}`}>
+        <div className="p-6 pb-4">
+          <h2 className="text-lg font-medium text-slate-200">Portfolio Overview</h2>
+        </div>
+        <div className="px-6 pb-6 overflow-y-auto" style={{ height: 'calc(100% - 4rem)' }}>
+          {getPortfolioExpandedContent(realMetrics, portfolioData)}
+        </div>
       </div>
     )
   }

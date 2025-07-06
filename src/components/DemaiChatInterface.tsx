@@ -13,9 +13,10 @@ interface ChatMessage {
 
 interface DemaiChatInterfaceProps {
   className?: string
+  mode?: 'floating' | 'embedded'
 }
 
-const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' }) => {
+const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '', mode = 'floating' }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
@@ -451,6 +452,163 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '' 
     }
   }
 
+  // Embedded mode - always expanded, no floating behavior, but keep original design
+  if (mode === 'embedded') {
+    return (
+      <div className={`h-full flex flex-col relative overflow-hidden ${className}`} ref={chatContainerRef}>
+        {/* Use the exact same design as the floating version, just without fixed positioning */}
+        <div className="h-full flex flex-col relative">
+          {/* Enhanced glow effect with blue theme - contained within parent */}
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-[#2563eb] via-[#60a5fa] to-[#f97316] p-[1px] opacity-80 shadow-lg shadow-blue-500/30 transition-all duration-300">
+            <div className="h-full w-full rounded-3xl bg-black/60 backdrop-blur-3xl" />
+          </div>
+
+          {/* Additional outer glow - contained and clipped */}
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-[#2563eb]/20 via-[#60a5fa]/20 to-[#f97316]/20 opacity-60 blur-xl transition-all duration-300" />
+
+          {/* Content container - same as floating version */}
+          <div className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-black/40 shadow-inner backdrop-blur-3xl">
+            {/* Header with improved design - same as floating */}
+            <div className="relative border-b border-white/5 p-4">
+              {/* Background gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#2563eb]/5 via-transparent to-[#60a5fa]/5" />
+
+              <div className="relative flex items-center justify-between">
+                {/* Left side - Status indicator with enhanced design */}
+                <div className="flex items-center space-x-3">
+                  {/* Multi-layered status indicator */}
+                  <div className="relative">
+                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-gradient-to-r from-[#2563eb] to-[#60a5fa] shadow-lg shadow-blue-400/50" />
+                    <div className="absolute inset-0 h-2.5 w-2.5 animate-ping rounded-full bg-gradient-to-r from-[#2563eb]/30 to-[#60a5fa]/30" />
+                  </div>
+
+                  {/* Status text */}
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-white/90">demai</span>
+                    <span className="font-mono text-xs text-green-400">● online</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Content Area - same as floating */}
+            <div ref={messagesContainerRef} className="chat-scrollbar flex-1 space-y-2 overflow-y-auto px-6 pb-6 font-mono">
+              {messages.length === 0 ? (
+                /* Terminal-like welcome screen */
+                <div className="mt-4 space-y-4 font-mono">
+                  <div className="text-sm text-green-400">
+                    <div className="mb-2 select-none">$ demai --init</div>
+                    <div className="ml-4 text-white/60 select-text">Initializing DeFi yield optimization assistant...</div>
+                    <div className="ml-4 text-white/60 select-text">Loading market data...</div>
+                    <div className="ml-4 text-white/60 select-text">Ready for queries.</div>
+                  </div>
+                  <div className="mt-6 text-sm text-white/80">
+                    <div className="mb-2 text-blue-400 select-none">Available commands:</div>
+                    <div className="ml-4 space-y-1 text-white/60">
+                      <div className="select-text">• analyze [token] - Analyze yield opportunities</div>
+                      <div className="select-text">• portfolio - Review your current positions</div>
+                      <div className="select-text">• risks [protocol] - Assess protocol risks</div>
+                      <div className="select-text">• optimize - Get yield optimization suggestions</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Terminal-like chat messages */
+                <div className="space-y-1 pt-4 font-mono text-sm">
+                  {messages.map((message) => (
+                    <div key={message.id} className="group">
+                      {message.sender === 'user' ? (
+                        <div className="flex items-start space-x-2">
+                          <span className="flex-shrink-0 text-green-400 select-none">user@demai:~$</span>
+                          <div className="flex-1 break-words whitespace-pre-wrap text-white/90 select-text">{message.text}</div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 mb-4">
+                          <div className="mb-1 flex items-center space-x-2">
+                            <span className="flex-shrink-0 text-blue-400 select-none">demai@assistant:</span>
+                            <span className="text-xs text-white/40 select-none">
+                              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div className="ml-6 leading-relaxed break-words whitespace-pre-wrap text-white/80 select-text">{message.text}</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {isLoading && (
+                    <div className="mt-2 flex items-center space-x-2">
+                      <span className="text-blue-400">demai@assistant:</span>
+                      <div className="flex items-center space-x-1">
+                        <div className="h-1 w-1 animate-bounce rounded-full bg-white/60" />
+                        <div className="h-1 w-1 animate-bounce rounded-full bg-white/60" style={{ animationDelay: '0.1s' }} />
+                        <div className="h-1 w-1 animate-bounce rounded-full bg-white/60" style={{ animationDelay: '0.2s' }} />
+                      </div>
+                      <span className="text-xs text-white/60">processing...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area - same as floating version */}
+            <div className="relative p-6">
+              <div className="relative">
+                {/* Enhanced glow effect with blue theme */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#2563eb] via-[#60a5fa] to-[#f97316] p-[1px] opacity-80 shadow-lg shadow-blue-500/30 transition-all duration-300">
+                  <div className="h-full w-full rounded-full bg-black/60 backdrop-blur-3xl" />
+                </div>
+
+                {/* Additional outer glow - contained */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#2563eb]/20 via-[#60a5fa]/20 to-[#f97316]/20 opacity-60 blur-xl transition-all duration-300" />
+
+                {/* Content */}
+                <div className="relative rounded-full border border-white/10 bg-black/40 px-6 py-3 shadow-inner backdrop-blur-3xl">
+                  <form onSubmit={handleSubmit} className="flex items-center justify-between">
+                    <div className="flex flex-1 items-center space-x-3">
+                      <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-gradient-to-r from-[#2563eb] to-[#60a5fa] shadow-lg shadow-blue-400/50" />
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                        placeholder={messages.length === 0 ? "start here optimizing your yield" : ""}
+                        className="siri-glow-subtle flex-1 bg-transparent text-base font-medium text-white placeholder-white/50 focus:outline-none"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    {/* Send button */}
+                    <button
+                      type="submit"
+                      disabled={!inputValue.trim() || isLoading}
+                      onMouseDown={(e) => {
+                        // Prevent button click from stealing focus
+                        e.preventDefault()
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleSubmit(e)
+                      }}
+                      className="flex items-center justify-center rounded-full border border-white/20 bg-gradient-to-r from-[#2563eb]/90 to-[#60a5fa]/90 p-1.5 text-white shadow-lg shadow-blue-500/40 backdrop-blur-xl transition-all duration-200 hover:from-[#2563eb] hover:to-[#60a5fa] hover:shadow-blue-500/60 disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Floating mode - original behavior
   return (
     <div className={`fixed right-6 bottom-6 z-50 transition-all duration-700 ease-out ${className}`} ref={chatContainerRef}>
       {/* Expanded State Content - Slides up from behind the input */}

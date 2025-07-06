@@ -275,6 +275,7 @@ const DemaiPage = () => {
               </div>
 
               {/* Running Automation Indicators - Scattered like target design - Dynamic from portfolio data */}
+              {/* REMOVED Automation Indicators as per user request
               {(() => {
                 // Get strategy holdings from portfolio data - extract from strategies object
                 const strategyHoldings = Object.values(portfolioData.strategies || {}).map(strategy => ({
@@ -387,6 +388,7 @@ const DemaiPage = () => {
                   />
                 ))
               })()}
+              */}
             </div>
 
             {/* Wireframe Overlay within content area */}

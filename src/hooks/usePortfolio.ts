@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { useAppStore, PortfolioData } from '@/store'
 import { useVaultVerification } from '@/hooks/useVaultVerification'
-import { useEvent } from '@/hooks/useEvents'
+import { useEvent, useEventEmitter } from '@/hooks/useEvents'
 import { getPortfolioData as fetchPortfolioData } from '@/services/demaiApi'
 
 export const usePortfolio = (shouldFetch: boolean = true) => {
@@ -15,6 +15,9 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
   const setPortfolioLoading = useAppStore((state) => state.setPortfolioLoading)
   const setPortfolioError = useAppStore((state) => state.setPortfolioError)
   const shouldQueryPortfolio = useAppStore((state) => state.shouldQueryPortfolio)
+
+  // Event emitter for portfolio loaded event
+  const emit = useEventEmitter()
 
   // Listen for portfolio update events
   const portfolioUpdateEvent = useEvent('app.portfolio')
@@ -61,6 +64,11 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
         }
 
         setPortfolioData(vaultAddr, portfolioData)
+        
+        // Emit event to open portfolio window when data is successfully loaded for the first time
+        if (!force) {
+          emit('app.openwindow.portfolio')
+        }
       } else {
         const errorPortfolio: PortfolioData = {
           ...defaultPortfolio,

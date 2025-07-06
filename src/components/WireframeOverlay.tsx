@@ -844,8 +844,10 @@ const WireframeOverlay = () => {
               w.id === windowId
                 ? {
                     ...w,
-                    x: finalX,
-                    y: finalY,
+                    x: windowId === 'portfolio' ? 350 : finalX, // Maximize portfolio window
+                    y: windowId === 'portfolio' ? 10 : finalY,  // Maximize portfolio window
+                    width: windowId === 'portfolio' ? viewportWidth - 700 : 500, // Maximize portfolio window
+                    height: windowId === 'portfolio' ? viewportHeight - 200 : 350, // Maximize portfolio window
                     // Final animation state with enhanced Minority Report style
                     style: {
                       transition: 'all 1.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.6s ease-out 0.3s',
@@ -899,6 +901,8 @@ const WireframeOverlay = () => {
     },
     [leftStackData, rightStackData, viewportWidth]
   )
+
+
 
   useEffect(() => {
     // Only process if we have events and the count increased

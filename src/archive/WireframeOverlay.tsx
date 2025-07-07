@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Rnd } from 'react-rnd'
-import SideTabButton from './SideTabButton'
-import WindowToolbar from './WindowToolbar'
-import DashboardCard from './DashboardCard'
+import SideTabButton from '../components/SideTabButton'
+import WindowToolbar from '../components/WindowToolbar'
+import DashboardCard from '../components/DashboardCard'
 import ExpandedCard from './ExpandedCard'
 import { useEvent } from '../hooks/useEvents'
 import { useAppStore } from '../store'
-import { createRealPortfolioStackData } from './Portfolio'
+import { createRealPortfolioStackData } from '../components/Portfolio'
 
 // Protocol Icons Component
 const ProtocolIcon = ({ name, className = 'w-4 h-4' }: { name: string; className?: string }): React.ReactElement => {

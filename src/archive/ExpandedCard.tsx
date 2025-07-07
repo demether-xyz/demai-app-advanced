@@ -1,6 +1,6 @@
 import React from 'react'
 import { Rnd } from 'react-rnd'
-import { getPortfolioExpandedContent, useRealPortfolioMetrics, defaultPortfolioMetrics } from './Portfolio'
+import { getPortfolioExpandedContent, useRealPortfolioMetrics, defaultPortfolioMetrics } from '../components/Portfolio'
 import { usePortfolio } from '../hooks/usePortfolio'
 import { useAccount } from 'wagmi'
 import { useAuth } from '../hooks/useAuth'

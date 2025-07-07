@@ -1,31 +1,21 @@
 import { useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { useAppStore, PortfolioData } from '@/store'
-import { useVaultVerification } from '@/hooks/useVaultVerification'
 import { useEvent, useEventEmitter } from '@/hooks/useEvents'
 import { getPortfolioData as fetchPortfolioData } from '@/services/demaiApi'
+import { useAuth } from '@/hooks/useAuth'
 
 export const usePortfolio = (shouldFetch: boolean = true) => {
   const { isConnected, address } = useAccount()
-  const { vaultAddress, hasVault, isLoading: isVaultLoading } = useVaultVerification(isConnected)
+  const { hasValidSignature } = useAuth()
   
   // Store actions and selectors
   const setPortfolioData = useAppStore((state) => state.setPortfolioData)
   const getPortfolioData = useAppStore((state) => state.getPortfolioData)
-  const setPortfolioLoading = useAppStore((state) => state.setPortfolioLoading)
-  const setPortfolioError = useAppStore((state) => state.setPortfolioError)
   const shouldQueryPortfolio = useAppStore((state) => state.shouldQueryPortfolio)
+  const clearPortfolioCache = useAppStore((state) => state.clearPortfolioCache)
+  const setPortfolioLoading = useAppStore((state) => state.setPortfolioLoading)
 
-  // Event emitter for portfolio loaded event
-  const emit = useEventEmitter()
-
-  // Listen for portfolio update events
-  const portfolioUpdateEvent = useEvent('app.portfolio')
-  const portfolioRefreshEvent = useEvent('app.portfolio.refresh')
-
-  // Get current portfolio data from store
-  const portfolioData = vaultAddress ? getPortfolioData(vaultAddress) : undefined
-  
   // Default empty portfolio state
   const defaultPortfolio: PortfolioData = {
     total_value_usd: 0,
@@ -40,87 +30,146 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
     error: null,
   }
 
-  // Fetch portfolio data
-  const fetchPortfolio = async (vaultAddr: string, force: boolean = false) => {
-    if (!force && !shouldQueryPortfolio(vaultAddr)) {
+  // Get current portfolio data from store using wallet address
+  const portfolioData = address ? getPortfolioData(address) : defaultPortfolio
+
+  // Listen for portfolio refresh events
+  const refreshEvent = useEvent('app.portfolio.refresh')
+  const emit = useEventEmitter()
+
+  // Fetch portfolio data using wallet address
+  const fetchPortfolio = async (walletAddress: string, force: boolean = false) => {
+    console.log('🔄 [Portfolio] Fetching portfolio data...', {
+      walletAddress,
+      force,
+      timestamp: new Date().toISOString()
+    })
+
+    // Don't fetch if not authenticated
+    if (!hasValidSignature) {
+      console.log('❌ [Portfolio] Not authenticated, skipping fetch')
+      setPortfolioData(walletAddress, {
+        ...defaultPortfolio,
+        error: 'Please authenticate to view your portfolio.',
+        isLoading: false,
+      })
       return
     }
 
-    setPortfolioLoading(vaultAddr, true)
-    setPortfolioError(vaultAddr, null)
+    // Set loading state immediately
+    console.log('⏳ [Portfolio] Setting loading state to true')
+    setPortfolioLoading(walletAddress, true)
 
     try {
-      const result = await fetchPortfolioData(vaultAddr, force)
+      const result = await fetchPortfolioData(walletAddress, force)
+      
+      console.log('✅ [Portfolio] Received API response:', {
+        success: result.success,
+        hasData: !!result.data,
+        totalValue: result.data?.total_value_usd,
+        timestamp: new Date().toISOString()
+      })
+      
       if (result.success && result.data) {
-        
+        // Map the API response to our expected structure
         const portfolioData: PortfolioData = {
-          total_value_usd: result.data.total_value_usd,
+          total_value_usd: result.data.total_value_usd || 0,
           chains: result.data.chains || {},
           strategies: result.data.strategies || {},
-          summary: result.data.summary || { active_chains: [], active_strategies: [], total_tokens: 0 },
-          isLoading: false,
+          summary: result.data.summary || { 
+            active_chains: [], 
+            active_strategies: [], 
+            total_tokens: 0 
+          },
+          isLoading: false,  // Explicitly set loading to false
           error: null,
           lastUpdated: Date.now(),
         }
 
-        setPortfolioData(vaultAddr, portfolioData)
+        console.log('💾 [Portfolio] Updating store with new data', {
+          totalValue: portfolioData.total_value_usd,
+          isLoading: false,
+          timestamp: new Date().toISOString()
+        })
         
-        // Emit event to open portfolio window when data is successfully loaded for the first time
-        if (!force) {
-          emit('app.openwindow.portfolio')
-        }
+        setPortfolioData(walletAddress, portfolioData)
       } else {
-        const errorPortfolio: PortfolioData = {
+        console.log('⚠️ [Portfolio] API request failed:', {
+          error: result.error,
+          timestamp: new Date().toISOString()
+        })
+        setPortfolioData(walletAddress, {
           ...defaultPortfolio,
           error: result.error || 'Failed to fetch portfolio data',
-        }
-        setPortfolioData(vaultAddr, errorPortfolio)
+          isLoading: false,
+        })
       }
     } catch (error) {
-      const errorPortfolio: PortfolioData = {
+      console.error('❌ [Portfolio] Error fetching data:', {
+        error,
+        timestamp: new Date().toISOString()
+      })
+      setPortfolioData(walletAddress, {
         ...defaultPortfolio,
         error: 'Failed to fetch portfolio data',
-      }
-      setPortfolioData(vaultAddr, errorPortfolio)
+        isLoading: false,
+      })
+    } finally {
+      // Ensure loading state is cleared in all cases
+      console.log('⏳ [Portfolio] Setting loading state to false')
+      setPortfolioLoading(walletAddress, false)
     }
   }
 
-  // Trigger refresh function
+  // Refresh portfolio data
   const refreshPortfolio = () => {
-    if (vaultAddress) {
-      fetchPortfolio(vaultAddress, true)
+    if (address) {
+      console.log('🔄 [Portfolio] Manual refresh triggered', {
+        address,
+        timestamp: new Date().toISOString()
+      })
+      fetchPortfolio(address, true)
     }
   }
 
-  // Auto-fetch portfolio data when conditions are met
+  // Initial fetch and refresh event handling
   useEffect(() => {
-    if (!shouldFetch || !hasVault || !vaultAddress || isVaultLoading) {
-      return
+    if (shouldFetch && address && hasValidSignature) {
+      // Check if we should query based on cache and last query time
+      if (shouldQueryPortfolio(address)) {
+        console.log('🔄 [Portfolio] Initial/cache-expired fetch triggered', {
+          address,
+          timestamp: new Date().toISOString()
+        })
+        fetchPortfolio(address)
+      }
     }
+  }, [shouldFetch, address, hasValidSignature])
 
-    fetchPortfolio(vaultAddress)
-  }, [shouldFetch, hasVault, vaultAddress, isVaultLoading])
-
-  // Listen for portfolio update events
+  // Handle refresh events
   useEffect(() => {
-    if (portfolioUpdateEvent > 0 && vaultAddress) {
-      fetchPortfolio(vaultAddress)
+    if (refreshEvent > 0 && address) {
+      console.log('🔄 [Portfolio] Event-triggered refresh', {
+        refreshEvent,
+        address,
+        timestamp: new Date().toISOString()
+      })
+      fetchPortfolio(address, true)
     }
-  }, [portfolioUpdateEvent, vaultAddress])
+  }, [refreshEvent, address])
 
-  // Listen for portfolio refresh events
+  // Clear cache when wallet changes
   useEffect(() => {
-    if (portfolioRefreshEvent > 0 && vaultAddress) {
-      fetchPortfolio(vaultAddress, true)
+    if (!address) {
+      console.log('🧹 [Portfolio] Clearing cache - no wallet connected')
+      clearPortfolioCache()
     }
-  }, [portfolioRefreshEvent, vaultAddress])
+  }, [address])
 
-  // Return the portfolio data or default if not available
   return {
     portfolioData: portfolioData || defaultPortfolio,
     refreshPortfolio,
-    isVaultLoading,
-    hasVault,
-    vaultAddress,
   }
-} 
+}
+
+export default usePortfolio 

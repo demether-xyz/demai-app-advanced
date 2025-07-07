@@ -64,40 +64,38 @@ export const sendMessageToDemai = async (message: string, walletAddress?: string
 
 // Function to get portfolio data
 export const getPortfolioData = async (
-  vaultAddress: string,
+  walletAddress: string,
   refresh: boolean = false
 ): Promise<ApiResponse<PortfolioData>> => {
   try {
     const authData = getStoredAuthData()
+    
     if (!authData) {
       return { success: false, error: 'User is not authenticated.' }
     }
 
-    // The backend expects a POST request with signature
+    const requestBody = {
+      wallet_address: walletAddress,
+      signature: authData.signature,
+      refresh: refresh,
+    }
+
     const response = await fetch(`${API_BASE_URL}/portfolio/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        vault_address: vaultAddress,
-        wallet_address: authData.address,
-        signature: authData.signature,
-        refresh: refresh, // Pass refresh flag to the backend
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
       const errorData = await response.json()
-      return { success: false, error: errorData.detail || 'Network response was not ok' }
+      return { success: false, error: errorData.error || 'Failed to fetch portfolio data.' }
     }
+
     const data = await response.json()
     return { success: true, data }
   } catch (error) {
-    console.error('Failed to fetch portfolio data:', error)
-    if (error instanceof Error) {
-      return { success: false, error: error.message }
-    }
-    return { success: false, error: 'An unknown error occurred' }
+    return { success: false, error: 'Failed to fetch portfolio data.' }
   }
 }

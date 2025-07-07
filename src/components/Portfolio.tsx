@@ -3,6 +3,8 @@ import { usePortfolio } from '../hooks/usePortfolio'
 import { useAccount } from 'wagmi'
 import { useAuth } from '../hooks/useAuth'
 import TokenIcon from './TokenIcon'
+import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { useAppStore, PortfolioData } from '@/store'
 
 export interface PortfolioCardData {
   id: string
@@ -47,7 +49,7 @@ export const getPortfolioCardContent = (metrics: PortfolioMetrics, portfolioData
           {Object.entries(safePortfolioData.strategies).slice(0, 2).map(([key, strategy]: [string, any]) => (
             <div key={key} className="flex items-center justify-between text-xs">
               <span className="text-blue-400 capitalize">
-                {strategy.protocol}
+                {strategy.protocol} {strategy.strategy?.replace('_', ' ')}
               </span>
               <span className="text-emerald-400">
                 ${strategy.total_value_usd?.toLocaleString() || '0'}
@@ -185,15 +187,15 @@ export const getPortfolioExpandedContent = (metrics: PortfolioMetrics, portfolio
                 <div className="space-y-2">
                   <h6 className="text-sm font-medium text-slate-300 mb-2">Strategy Positions</h6>
                   {Object.entries(chainData.strategies).map(([strategyKey, strategy]: [string, any]) => (
-                    <div key={strategyKey} className="rounded-lg bg-slate-900/50 p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-medium text-slate-200 capitalize text-sm">
-                          {strategy.protocol} - {strategy.strategy.replace('_', ' ')}
-                        </div>
-                        <div className="text-sm text-emerald-400">
-                          ${strategy.total_value_usd?.toLocaleString() || '0'}
-                        </div>
-                      </div>
+                                    <div key={strategyKey} className="rounded-lg bg-slate-900/50 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-medium text-slate-200 capitalize text-sm">
+                      {strategy.protocol} - {strategy.strategy?.replace('_', ' ') || 'Strategy'}
+                    </div>
+                    <div className="text-sm text-emerald-400">
+                      ${strategy.total_value_usd?.toLocaleString() || '0'}
+                    </div>
+                  </div>
                       <div className="space-y-1">
                         {Object.entries(strategy.tokens || {}).map(([tokenSymbol, token]: [string, any]) => (
                           <div key={tokenSymbol} className="flex items-center justify-between text-xs">
@@ -375,50 +377,174 @@ interface PortfolioProps {
   className?: string
 }
 
-const Portfolio: React.FC<PortfolioProps> = ({ 
+const Portfolio: React.FC<PortfolioProps> = ({
   expanded = false,
-  className = ''
+  className = '',
 }) => {
-  const { isConnected } = useAccount()
-  const { hasValidSignature } = useAuth()
-  const { portfolioData } = usePortfolio(isConnected && hasValidSignature)
-  const realMetrics = useRealPortfolioMetrics(portfolioData)
+  const { address } = useAccount()
+  // Read directly from store instead of props
+  const portfolioData = useAppStore((state) => 
+    address ? state.portfolio.cache[address.toLowerCase()] : undefined
+  )
+  const { refreshPortfolio } = usePortfolio(true)
 
-  if (portfolioData.isLoading) {
+  // Format currency values with smart decimal places based on value size
+  const formatCurrency = (value: number) => {
+    if (value === 0 || !value) return '$0.00'
+    
+    // Determine decimal places based on value size
+    let decimals = 2
+    if (value < 1) {
+      decimals = 6  // Show 6 decimals for values less than $1
+    } else if (value < 10) {
+      decimals = 4  // Show 4 decimals for values less than $10
+    } else if (value < 1000) {
+      decimals = 3  // Show 3 decimals for values less than $1000
+    }
+    
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value)
+  }
+
+  // If loading, show loading state
+  if (!portfolioData || portfolioData.isLoading) {
     return (
-      <div className={`rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-6 ${className}`}>
-        <h2 className="mb-4 text-lg font-medium text-slate-200">Portfolio Overview</h2>
-        <div className="text-slate-400">Loading portfolio data...</div>
+      <div className={`flex flex-col items-center justify-center rounded-lg border border-gray-700/40 bg-gray-800/40 p-6 ${className}`}>
+        <div className="flex items-center space-x-2">
+          <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-400" />
+          <span className="text-lg font-medium text-gray-300">Loading portfolio data...</span>
+        </div>
+        <button
+          onClick={refreshPortfolio}
+          className="mt-4 rounded-lg bg-gray-700/30 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700/50"
+        >
+          Refresh
+        </button>
       </div>
     )
   }
 
+  // If error, show error state
   if (portfolioData.error) {
     return (
-      <div className={`rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-6 ${className}`}>
-        <h2 className="mb-4 text-lg font-medium text-slate-200">Portfolio Overview</h2>
-        <div className="text-red-400">Error: {portfolioData.error}</div>
+      <div className={`flex flex-col items-center justify-center rounded-lg border border-red-700/40 bg-red-900/20 p-6 ${className}`}>
+        <div className="text-center">
+          <div className="text-lg font-medium text-red-400 mb-2">Failed to load portfolio</div>
+          <div className="text-sm text-red-300">{portfolioData.error}</div>
+        </div>
+        <button
+          onClick={refreshPortfolio}
+          className="mt-4 rounded-lg bg-red-700/30 px-4 py-2 text-sm font-medium text-red-300 transition-colors hover:bg-red-700/50"
+        >
+          Try Again
+        </button>
       </div>
     )
   }
 
-  if (expanded) {
+  // If no data, show empty state
+  if (!portfolioData.chains || Object.keys(portfolioData.chains).length === 0) {
     return (
-      <div className={`rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md overflow-hidden ${className}`}>
-        <div className="p-6 pb-4">
-          <h2 className="text-lg font-medium text-slate-200">Portfolio Overview</h2>
+      <div className={`flex flex-col items-center justify-center rounded-lg border border-gray-700/40 bg-gray-800/40 p-6 ${className}`}>
+        <div className="text-center">
+          <div className="text-lg font-medium text-gray-300 mb-2">No portfolio data</div>
+          <div className="text-sm text-gray-400">Deploy a vault to get started</div>
         </div>
-        <div className="px-6 pb-6 overflow-y-auto" style={{ height: 'calc(100% - 4rem)' }}>
-          {getPortfolioExpandedContent(realMetrics, portfolioData)}
-        </div>
+        <button
+          onClick={refreshPortfolio}
+          className="mt-4 rounded-lg bg-gray-700/30 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700/50"
+        >
+          Refresh
+        </button>
       </div>
     )
   }
 
+  // Main portfolio view
   return (
-    <div className={`rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-4 ${className}`}>
-      <h3 className="mb-3 text-sm font-normal text-slate-200">Portfolio Overview</h3>
-      {getPortfolioCardContent(realMetrics, portfolioData)}
+    <div className={`rounded-lg border border-gray-700/40 bg-gray-800/40 ${className}`}>
+      {/* Portfolio Header */}
+      <div className="flex items-center justify-between border-b border-gray-700/30 p-6 pb-4">
+        <h2 className="text-xl font-semibold text-white">Portfolio Overview</h2>
+        <button
+          onClick={refreshPortfolio}
+          className="rounded-lg bg-gray-700/30 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700/50"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* Scrollable Portfolio Content */}
+      <div className="max-h-[calc(100vh-200px)] overflow-y-auto p-6">
+        {/* Chain Breakdown */}
+        <div className="space-y-6">
+        {portfolioData &&
+          portfolioData.chains &&
+          Object.entries(portfolioData.chains).map(([chainName, chainData]) => (
+            <div key={chainName} className="rounded-lg border border-gray-700/30 bg-gray-800/30 p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-lg font-medium text-white">{chainName}</h3>
+                  <span className="text-sm text-gray-400">
+                    ({formatCurrency(chainData.total_value_usd)})
+                  </span>
+                </div>
+              </div>
+
+              {/* Token List */}
+              <div className="space-y-3">
+                {Object.entries(chainData.tokens).map(([symbol, tokenData]) => (
+                  <div key={symbol} className="flex items-center justify-between rounded-lg bg-gray-700/20 p-3">
+                    <div className="flex items-center space-x-3">
+                      <TokenIcon symbol={symbol} className="h-6 w-6" />
+                      <div>
+                        <div className="font-medium text-white">{symbol}</div>
+                        <div className="text-sm text-gray-400">{tokenData.balance}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-medium text-white">{formatCurrency(tokenData.value_usd)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Strategy List */}
+              {chainData.strategies && Object.entries(chainData.strategies).length > 0 && (
+                <div className="mt-4">
+                  <h4 className="mb-3 text-sm font-medium text-gray-400">Active Strategies</h4>
+                  <div className="space-y-3">
+                    {Object.entries(chainData.strategies).map(([strategyId, strategyData]) => (
+                      <div key={strategyId} className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-blue-400">{strategyData.protocol}</div>
+                            <div className="text-sm text-gray-400">
+                              {Object.entries(strategyData.tokens || {}).map(([symbol, tokenData]) => {
+                                const balance = typeof tokenData === 'object' && tokenData?.balance 
+                                  ? Number(tokenData.balance).toFixed(4) 
+                                  : '0.0000'
+                                return `${balance} ${symbol}`
+                              }).join(', ')}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium text-white">{formatCurrency(strategyData.total_value_usd)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

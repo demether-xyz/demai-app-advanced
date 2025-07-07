@@ -50,6 +50,7 @@ import { useTokenBalancesAndApprovals } from '@/hooks/useTokenBalancesAndApprova
 import { useVaultTokenBalances } from '@/hooks/useVaultTokenBalances'
 import { useVaultAddress } from '@/hooks/useVaultAddress'
 import { getTokensForChain, ERC20_ABI, VAULT_FACTORY_ADDRESS, VAULT_FACTORY_ABI, SUPPORTED_CHAINS, Chain } from '@/config/tokens'
+import { useAppStore } from '@/store'
 
 // Vault ABI for deposit/withdraw functions
 const VAULT_ABI = [
@@ -75,11 +76,14 @@ const DemaiPage = () => {
   const { isConnected, address } = useAccount()
   const { hasValidSignature } = useAuth()
   const [mounted, setMounted] = useState(false)
-  const [currentView, setCurrentView] = useState<ViewType>('portfolio') // Default to portfolio view
-  
-  // Use the portfolio hook instead of local state
-  const { portfolioData, refreshPortfolio, isVaultLoading, hasVault, vaultAddress } = usePortfolio(isConnected && hasValidSignature)
-  
+  const [currentView, setCurrentView] = useState<ViewType>('portfolio')
+
+  // Use the portfolio hook for fetching and store for reading
+  const { refreshPortfolio } = usePortfolio(true)
+  const portfolioData = useAppStore((state) => 
+    address ? state.portfolio.cache[address.toLowerCase()] : undefined
+  )
+
   // Listen for vault modal events - now switch to vault view instead
   const vaultOpenEvent = useEvent('vault.open')
   const strategyTriggerEvent = useEvent('strategy.trigger.open')
@@ -897,16 +901,7 @@ const DemaiPage = () => {
         return
       }
 
-      console.log('Executing strategy:', {
-        strategy: selectedStrategy.id,
-        strategyName: selectedStrategy.name,
-        amount: parseFloat(amount),
-        primaryToken: selectedStrategy.primaryToken,
-        chain: selectedStrategy.chain.name,
-        vaultAddress,
-        chainId: selectedStrategy.chain.id
-      })
-      
+      // Execute strategy
       emit('app.portfolio.refresh')
       setAmount('')
     }
@@ -1150,28 +1145,24 @@ const DemaiPage = () => {
                   {/* Portfolio Value */}
                   <div className="mb-6">
                     <div className="mb-2 text-5xl font-bold text-white">
-                      {portfolioData.isLoading || isVaultLoading
-                        ? 'Loading...' 
-                        : !hasVault
-                          ? '$0.00'
-                          : portfolioData.error 
-                            ? '$0.00'
-                            : formatCurrency(portfolioData.total_value_usd)
-                      }
+                      {portfolioData && !portfolioData.isLoading && portfolioData.total_value_usd > 0
+                        ? formatCurrency(portfolioData.total_value_usd)
+                        : portfolioData?.isLoading
+                          ? 'Loading...'
+                          : '$0.00'}
                     </div>
                     
                     <div className="mb-1 text-lg font-medium text-white/70 flex items-center">
                       <span>
-                        {portfolioData.isLoading || isVaultLoading
+                        {portfolioData?.isLoading
                           ? 'Fetching portfolio data...'
-                          : !hasVault
-                            ? 'No vault deployed yet'
-                            : portfolioData.error
-                              ? 'Unable to load portfolio'
-                              : `Across ${Object.keys(portfolioData.chains || {}).length} chains`
-                        }
+                          : portfolioData?.error
+                            ? 'Unable to load portfolio'
+                            : portfolioData?.total_value_usd === 0
+                              ? 'No funds in portfolio yet'
+                              : `Across ${Object.keys(portfolioData?.chains || {}).length} chains`}
                       </span>
-                      {!portfolioData.isLoading && !isVaultLoading && hasVault && !portfolioData.error && (
+                      {!portfolioData?.isLoading && !portfolioData?.error && (
                         <button
                           onClick={refreshPortfolio}
                           className="ml-2 rounded p-1 text-white/50 hover:text-white/80 hover:bg-white/10 transition-colors"
@@ -1187,16 +1178,15 @@ const DemaiPage = () => {
                       <svg className="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                       </svg>
-                      {portfolioData.isLoading || isVaultLoading
+                      {portfolioData?.isLoading
                         ? 'Loading...'
-                        : !hasVault
-                          ? 'Deploy a vault to start'
-                          : portfolioData.error
-                            ? 'Data unavailable'
-                            : Object.keys(portfolioData.strategies || {}).length > 0
+                        : portfolioData?.error
+                          ? 'Data unavailable'
+                          : portfolioData?.total_value_usd === 0
+                            ? 'Deploy a vault to start'
+                            : Object.keys(portfolioData?.strategies || {}).length > 0
                               ? `${portfolioData.summary?.total_tokens || 0} tokens, ${Object.keys(portfolioData.strategies || {}).length} strategies (${formatCurrency(Object.values(portfolioData.strategies || {}).reduce((sum, s) => sum + (s.total_value_usd || 0), 0))})`
-                              : `${portfolioData.summary?.total_tokens || 0} tokens`
-                      }
+                              : `${portfolioData.summary?.total_tokens || 0} tokens`}
                     </div>
                   </div>
 
@@ -1258,7 +1248,12 @@ const DemaiPage = () => {
               {/* Right Panel - Dynamic Content Based on Current View */}
               <div className="flex-1 overflow-hidden">
                 <div className="h-full p-8">
-                  {currentView === 'portfolio' && <Portfolio expanded={true} className="h-full" />}
+                  {currentView === 'portfolio' && (
+                    <Portfolio
+                      expanded={true}
+                      className="h-full"
+                    />
+                  )}
                   {currentView === 'vault' && <VaultComponent />}
                   {currentView === 'strategy' && <StrategyComponent />}
                   {currentView === 'chat' && <DemaiChatInterface mode="embedded" />}

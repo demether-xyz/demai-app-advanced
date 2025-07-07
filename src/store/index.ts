@@ -38,9 +38,14 @@ export interface PortfolioToken {
 export interface PortfolioStrategyToken extends PortfolioToken {}
 
 export interface ChainStrategy {
-  protocol: string;
-  strategy: string;
-  tokens: Record<string, PortfolioStrategyToken>;
+  protocol: string
+  total_value_usd: number
+  tokens: {
+    [symbol: string]: {
+      balance: string
+      value_usd: number
+    }
+  }
 }
 
 export interface ChainData {
@@ -110,7 +115,7 @@ interface EventState {
 
   // Portfolio system
   portfolio: {
-    // Map of vaultAddress -> portfolio data
+    // Map of walletAddress -> portfolio data
     cache: Record<string, PortfolioData>
     // Last query timestamps for caching
     lastQueryTimestamp: Record<string, number>
@@ -130,12 +135,12 @@ interface EventState {
   clearTokenBalancesAndApprovals: (cacheKey?: string) => void
 
   // Portfolio actions
-  setPortfolioData: (vaultAddress: string, data: PortfolioData) => void
-  getPortfolioData: (vaultAddress: string) => PortfolioData | undefined
-  setPortfolioLoading: (vaultAddress: string, isLoading: boolean) => void
-  setPortfolioError: (vaultAddress: string, error: string | null) => void
-  shouldQueryPortfolio: (vaultAddress: string) => boolean
-  clearPortfolioCache: (vaultAddress?: string) => void
+  setPortfolioData: (walletAddress: string, data: PortfolioData) => void
+  getPortfolioData: (walletAddress: string) => PortfolioData | undefined
+  setPortfolioLoading: (walletAddress: string, isLoading: boolean) => void
+  setPortfolioError: (walletAddress: string, error: string | null) => void
+  shouldQueryPortfolio: (walletAddress: string) => boolean
+  clearPortfolioCache: (walletAddress?: string) => void
 }
 
 // Create the app store with event system
@@ -390,7 +395,7 @@ export const useAppStore = create<EventState>((set, get) => ({
   },
 
   // Portfolio actions
-  setPortfolioData: (vaultAddress: string, data: PortfolioData) => {
+  setPortfolioData: (walletAddress: string, data: PortfolioData) => {
     const now = Date.now()
     
     set((state) => ({
@@ -398,58 +403,117 @@ export const useAppStore = create<EventState>((set, get) => ({
         ...state.portfolio,
         cache: {
           ...state.portfolio.cache,
-          [vaultAddress]: data,
+          [walletAddress.toLowerCase()]: {
+            ...data,
+            lastUpdated: now,
+          },
         },
         lastQueryTimestamp: {
           ...state.portfolio.lastQueryTimestamp,
-          [vaultAddress]: now,
+          [walletAddress.toLowerCase()]: now,
         },
       },
     }))
   },
 
-  getPortfolioData: (vaultAddress: string) => {
+  getPortfolioData: (walletAddress: string) => {
     const state = get()
-    return state.portfolio.cache[vaultAddress]
+    return state.portfolio.cache[walletAddress.toLowerCase()]
   },
 
-  setPortfolioLoading: (vaultAddress: string, isLoading: boolean) => {
-    set((state) => ({
-      portfolio: {
-        ...state.portfolio,
-        cache: {
-          ...state.portfolio.cache,
-          [vaultAddress]: {
-            ...state.portfolio.cache[vaultAddress],
-            isLoading,
+  setPortfolioLoading: (walletAddress: string, isLoading: boolean) => {
+    set((state) => {
+      const existingData = state.portfolio.cache[walletAddress.toLowerCase()]
+      if (!existingData) {
+        // If no existing data, create a default portfolio with loading state
+        const defaultPortfolio: PortfolioData = {
+          total_value_usd: 0,
+          chains: {},
+          strategies: {},
+          summary: {
+            active_chains: [],
+            active_strategies: [],
+            total_tokens: 0,
+          },
+          isLoading,
+          error: null,
+        }
+        return {
+          portfolio: {
+            ...state.portfolio,
+            cache: {
+              ...state.portfolio.cache,
+              [walletAddress.toLowerCase()]: defaultPortfolio,
+            },
+          },
+        }
+      }
+      
+      return {
+        portfolio: {
+          ...state.portfolio,
+          cache: {
+            ...state.portfolio.cache,
+            [walletAddress.toLowerCase()]: {
+              ...existingData,
+              isLoading,
+            },
           },
         },
-      },
-    }))
+      }
+    })
   },
 
-  setPortfolioError: (vaultAddress: string, error: string | null) => {
-    set((state) => ({
-      portfolio: {
-        ...state.portfolio,
-        cache: {
-          ...state.portfolio.cache,
-          [vaultAddress]: {
-            ...state.portfolio.cache[vaultAddress],
-            error,
+  setPortfolioError: (walletAddress: string, error: string | null) => {
+    set((state) => {
+      const existingData = state.portfolio.cache[walletAddress.toLowerCase()]
+      if (!existingData) {
+        // If no existing data, create a default portfolio with error state
+        const defaultPortfolio: PortfolioData = {
+          total_value_usd: 0,
+          chains: {},
+          strategies: {},
+          summary: {
+            active_chains: [],
+            active_strategies: [],
+            total_tokens: 0,
+          },
+          isLoading: false,
+          error,
+        }
+        return {
+          portfolio: {
+            ...state.portfolio,
+            cache: {
+              ...state.portfolio.cache,
+              [walletAddress.toLowerCase()]: defaultPortfolio,
+            },
+          },
+        }
+      }
+      
+      return {
+        portfolio: {
+          ...state.portfolio,
+          cache: {
+            ...state.portfolio.cache,
+            [walletAddress.toLowerCase()]: {
+              ...existingData,
+              error,
+            },
           },
         },
-      },
-    }))
+      }
+    })
   },
 
-  shouldQueryPortfolio: (vaultAddress: string) => {
+  shouldQueryPortfolio: (walletAddress: string) => {
     const state = get()
-    const lastQuery = state.portfolio.lastQueryTimestamp[vaultAddress]
-    const currentStatus = state.portfolio.cache[vaultAddress]?.isLoading
+    const lastQuery = state.portfolio.lastQueryTimestamp[walletAddress.toLowerCase()]
+    const currentData = state.portfolio.cache[walletAddress.toLowerCase()]
     
     // Don't query if currently loading
-    if (currentStatus === true) return false
+    if (currentData?.isLoading === true) return false
     
     // Query if never queried before
     if (!lastQuery) return true
@@ -459,15 +523,15 @@ export const useAppStore = create<EventState>((set, get) => ({
     return Date.now() - lastQuery > CACHE_DURATION
   },
 
-  clearPortfolioCache: (vaultAddress?: string) => {
+  clearPortfolioCache: (walletAddress?: string) => {
     set((state) => {
-      if (vaultAddress) {
+      if (walletAddress) {
         // Clear specific portfolio data
         const newCache = { ...state.portfolio.cache }
         const newTimestamps = { ...state.portfolio.lastQueryTimestamp }
         
-        delete newCache[vaultAddress]
-        delete newTimestamps[vaultAddress]
+        delete newCache[walletAddress.toLowerCase()]
+        delete newTimestamps[walletAddress.toLowerCase()]
         
         return {
           portfolio: {

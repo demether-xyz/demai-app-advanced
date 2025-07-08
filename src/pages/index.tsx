@@ -1185,8 +1185,8 @@ const DemaiPage = () => {
                           : portfolioData?.total_value_usd === 0
                             ? 'Deploy a vault to start'
                             : Object.keys(portfolioData?.strategies || {}).length > 0
-                              ? `${portfolioData.summary?.total_tokens || 0} tokens, ${Object.keys(portfolioData.strategies || {}).length} strategies (${formatCurrency(Object.values(portfolioData.strategies || {}).reduce((sum, s) => sum + (s.total_value_usd || 0), 0))})`
-                              : `${portfolioData.summary?.total_tokens || 0} tokens`}
+                              ? `${portfolioData?.summary?.total_tokens || 0} tokens, ${Object.keys(portfolioData?.strategies || {}).length} strategies (${formatCurrency(Object.values(portfolioData?.strategies || {}).reduce((sum, s) => sum + (s.total_value_usd || 0), 0))})`
+                              : `${portfolioData?.summary?.total_tokens || 0} tokens`}
                     </div>
                   </div>
 

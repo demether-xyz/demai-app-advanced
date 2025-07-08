@@ -35,7 +35,7 @@ export interface PortfolioToken {
   value_usd: number;
 }
 
-export interface PortfolioStrategyToken extends PortfolioToken {}
+export type PortfolioStrategyToken = PortfolioToken
 
 export interface ChainStrategy {
   protocol: string

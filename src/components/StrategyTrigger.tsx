@@ -95,6 +95,11 @@ const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) =>
   const [isStrategyDropdownOpen, setIsStrategyDropdownOpen] = useState(false)
   const [showStrategyDetails, setShowStrategyDetails] = useState(false)
 
+  // Format APY values to 4 decimal places
+  const formatAPY = (apy: number) => {
+    return apy.toFixed(4)
+  }
+
   // Use the vault verification system - only when modal is open
   const {
     hasVault,
@@ -219,7 +224,7 @@ const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) =>
                     </div>
                     <div className="text-sm text-gray-400 mb-2">{selectedStrategy.description}</div>
                     <div className="flex items-center space-x-3">
-                      <div className="text-green-400 font-medium">{selectedStrategy.apy}% APY</div>
+                      <div className="text-green-400 font-medium">{formatAPY(selectedStrategy.apy)}% APY</div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskBadgeColor(selectedStrategy.riskLevel)}`}>
                         {selectedStrategy.riskLevel} risk
                       </span>
@@ -259,7 +264,7 @@ const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) =>
                             </div>
                             <div className="text-sm text-gray-400 mb-2">{strategy.description}</div>
                             <div className="flex items-center space-x-3">
-                              <div className="text-green-400 font-medium">{strategy.apy}% APY</div>
+                              <div className="text-green-400 font-medium">{formatAPY(strategy.apy)}% APY</div>
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskBadgeColor(strategy.riskLevel)}`}>
                                 {strategy.riskLevel} risk
                               </span>

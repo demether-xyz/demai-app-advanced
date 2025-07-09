@@ -136,6 +136,11 @@ const DemaiPage = () => {
     }).format(value)
   }
 
+  // Format APY values to 4 decimal places
+  const formatAPY = (apy: number) => {
+    return apy.toFixed(4)
+  }
+
   // Inline Vault Component (copied from working VaultModal)
   const VaultComponent = () => {
     const currentChainId = useChainId()
@@ -991,7 +996,7 @@ const DemaiPage = () => {
                            {task.status}
                          </span>
                          <div className="text-sm text-gray-400">
-                           {taskStrategy?.apy || 0}% APY
+                           {formatAPY(taskStrategy?.apy || 0)}% APY
                          </div>
                          <button
                            onClick={() => deleteTask(task._id)}
@@ -1033,7 +1038,7 @@ const DemaiPage = () => {
                     </div>
                     <div className="text-sm text-gray-400 mb-2">{selectedStrategy.description}</div>
                     <div className="flex items-center space-x-3">
-                      <div className="text-green-400 font-medium">{selectedStrategy.apy}% APY</div>
+                      <div className="text-green-400 font-medium">{formatAPY(selectedStrategy.apy)}% APY</div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskBadgeColor(selectedStrategy.riskLevel)}`}>
                         {selectedStrategy.riskLevel} risk
                       </span>
@@ -1063,7 +1068,7 @@ const DemaiPage = () => {
                           <div className="flex-1">
                             <div className="flex items-center space-x-3 mb-2">
                               <div className="flex items-center space-x-2">
-                                <span className="text-lg">{strategy.chain.icon}</span>
+                                <span className="text-lg">{strategy.chain?.icon || strategy.chain_icon || '⚡'}</span>
                                 <TokenIcon 
                                   symbol={strategy.primaryToken} 
                                   className="w-5 h-5"
@@ -1073,7 +1078,7 @@ const DemaiPage = () => {
                             </div>
                             <div className="text-sm text-gray-400 mb-2">{strategy.description}</div>
                             <div className="flex items-center space-x-3">
-                              <div className="text-green-400 font-medium">{strategy.apy}% APY</div>
+                              <div className="text-green-400 font-medium">{formatAPY(strategy.apy)}% APY</div>
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskBadgeColor(strategy.riskLevel)}`}>
                                 {strategy.riskLevel} risk
                               </span>
@@ -1106,8 +1111,8 @@ const DemaiPage = () => {
               <div className="flex justify-between">
                 <span className="text-gray-400">Chain:</span>
                 <span className="text-white flex items-center space-x-1">
-                  <span>{selectedStrategy.chain.icon}</span>
-                  <span>{selectedStrategy.chain.name}</span>
+                  <span>{selectedStrategy.chain?.icon || selectedStrategy.chain_icon || '⚡'}</span>
+                  <span>{selectedStrategy.chain?.name || selectedStrategy.chain_name || 'Unknown'}</span>
                 </span>
               </div>
               <div className="flex justify-between">
@@ -1147,7 +1152,7 @@ const DemaiPage = () => {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.0"
-                className="w-full rounded-xl border border-gray-600/60 bg-gray-800/80 py-3 px-4 pr-16 text-white placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+                className="w-full rounded-xl border border-gray-600/60 bg-gray-800/80 py-3 px-4 pr-16 text-white placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
               {primaryToken && 'balance' in primaryToken && (
                 <button

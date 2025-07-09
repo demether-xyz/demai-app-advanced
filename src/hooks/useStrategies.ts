@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { SUPPORTED_CHAINS, Chain } from '@/config/tokens'
+import { getStrategies } from '@/services/demaiApi'
 
 export interface Strategy {
   id: string
@@ -39,18 +40,16 @@ export const useStrategies = (): UseStrategiesResult => {
       setError(null)
       
       console.log('🔍 [useStrategies] Fetching strategies from API...')
-      const response = await fetch('http://localhost:5050/strategies/')
+      const response = await getStrategies()
       
-      if (!response.ok) {
-        console.error('❌ [useStrategies] API response not ok:', response.status, response.statusText)
-        throw new Error(`HTTP error! status: ${response.status}`)
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to fetch strategies')
       }
       
-      const data = await response.json()
-      console.log('✅ [useStrategies] API response received:', data)
+      const data = response.data
       
       // Transform API response to match frontend interface
-      const transformedStrategies: Strategy[] = data.strategies.map((strategy: any) => {
+      const transformedStrategies: Strategy[] = data!.strategies.map((strategy: any) => {
         // Find the chain object from SUPPORTED_CHAINS
         const chain = strategy.chain_id 
           ? SUPPORTED_CHAINS.find(c => c.id === strategy.chain_id)
@@ -77,10 +76,8 @@ export const useStrategies = (): UseStrategiesResult => {
         }
       })
       
-      console.log('✅ [useStrategies] Transformed strategies:', transformedStrategies)
       setStrategies(transformedStrategies)
     } catch (err) {
-      console.error('❌ [useStrategies] Error fetching strategies:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch strategies')
       
       // Don't fall back to hardcoded strategies - just show empty state

@@ -99,3 +99,29 @@ export const getPortfolioData = async (
     return { success: false, error: 'Failed to fetch portfolio data.' }
   }
 }
+
+// Function to get strategies
+export const getStrategies = async (): Promise<ApiResponse<{ strategies: any[] }>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/strategies/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { success: false, error: errorData.error || 'Failed to fetch strategies.' }
+    }
+
+    const data = await response.json()
+    return { success: true, data }
+  } catch (error) {
+    console.error('Failed to fetch strategies from Demai API:', error)
+    if (error instanceof Error) {
+      return { success: false, error: error.message }
+    }
+    return { success: false, error: 'An unknown error occurred' }
+  }
+}

@@ -38,13 +38,16 @@ export const useStrategies = (): UseStrategiesResult => {
       setIsLoading(true)
       setError(null)
       
+      console.log('🔍 [useStrategies] Fetching strategies from API...')
       const response = await fetch('http://localhost:5050/strategies/')
       
       if (!response.ok) {
+        console.error('❌ [useStrategies] API response not ok:', response.status, response.statusText)
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
       const data = await response.json()
+      console.log('✅ [useStrategies] API response received:', data)
       
       // Transform API response to match frontend interface
       const transformedStrategies: Strategy[] = data.strategies.map((strategy: any) => {
@@ -74,44 +77,14 @@ export const useStrategies = (): UseStrategiesResult => {
         }
       })
       
+      console.log('✅ [useStrategies] Transformed strategies:', transformedStrategies)
       setStrategies(transformedStrategies)
     } catch (err) {
-      console.error('Error fetching strategies:', err)
+      console.error('❌ [useStrategies] Error fetching strategies:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch strategies')
       
-      // Fallback to hardcoded strategies if API fails
-      const fallbackStrategies: Strategy[] = [
-        {
-          id: 'aave-usdc-arbitrum',
-          name: 'Aave USDC Lending',
-          description: 'Automated USDC lending on Aave with optimal yield farming',
-          detailedDescription: 'This strategy automatically lends your USDC on Aave V3 to earn lending rewards. The strategy monitors rates and automatically compounds rewards for maximum yield.',
-          chain: SUPPORTED_CHAINS.find(c => c.id === 42161)!,
-          primaryToken: 'USDC',
-          secondaryTokens: ['AAVE'],
-          apy: 18.5,
-          riskLevel: 'low' as const,
-          updateFrequency: 'Daily',
-          protocol: 'Aave V3',
-          thresholdInfo: 'Minimum 10 USDC required'
-        },
-        {
-          id: 'uniswap-eth-usdc-arbitrum',
-          name: 'Uniswap V3 ETH/USDC LP',
-          description: 'Concentrated liquidity provision with automated rebalancing',
-          detailedDescription: 'Provides liquidity to the ETH/USDC pool on Uniswap V3 with concentrated positions. Automatically rebalances when price moves outside the range.',
-          chain: SUPPORTED_CHAINS.find(c => c.id === 42161)!,
-          primaryToken: 'ETH',
-          secondaryTokens: ['USDC'],
-          apy: 24.2,
-          riskLevel: 'medium' as const,
-          updateFrequency: 'Every 6 hours',
-          protocol: 'Uniswap V3',
-          thresholdInfo: 'Minimum 0.1 ETH required'
-        }
-      ]
-      
-      setStrategies(fallbackStrategies)
+      // Don't fall back to hardcoded strategies - just show empty state
+      setStrategies([])
     } finally {
       setIsLoading(false)
     }

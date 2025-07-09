@@ -5,101 +5,28 @@ import { useVaultVerification } from '../hooks/useVaultVerification'
 import { useVaultTokenBalances } from '../hooks/useVaultTokenBalances'
 import { useVaultAddress } from '../hooks/useVaultAddress'
 import { useEventEmitter } from '../hooks/useEvents'
-import { getTokensForChain, SUPPORTED_CHAINS, Chain } from '../config/tokens'
+import { getTokensForChain } from '../config/tokens'
 import TokenIcon from './TokenIcon'
+import { useStrategies, Strategy } from '../hooks/useStrategies'
 
 interface StrategyTriggerProps {
   isOpen: boolean
   onClose: () => void
 }
 
-interface Strategy {
-  id: string
-  name: string
-  description: string
-  detailedDescription: string
-  chain: Chain
-  primaryToken: string
-  secondaryTokens?: string[]
-  apy: number
-  riskLevel: 'low' | 'medium' | 'high'
-  updateFrequency: string
-  protocol: string
-  thresholdInfo?: string
-}
-
-const availableStrategies: Strategy[] = [
-  {
-    id: 'bitcoin-core-yield-optimizer',
-    name: 'Bitcoin Core Yield Optimizer',
-    description: 'Automatically swaps between Bitcoin variants on Core chain for maximum yield',
-    detailedDescription: 'This strategy invests in Bitcoin on Core chain and intelligently swaps between three Bitcoin variants (coreBTC, WBTC, and stBTC) based on yield optimization. The strategy updates daily to monitor which variant offers the highest yield and automatically rebalances when there\'s a significant threshold change. All deposits are managed through CoLand protocol for secure yield generation.',
-    chain: SUPPORTED_CHAINS.find(c => c.name === 'Core') || SUPPORTED_CHAINS[0],
-    primaryToken: 'BTC',
-    secondaryTokens: ['coreBTC', 'WBTC', 'stBTC'],
-    apy: 12.5,
-    riskLevel: 'medium',
-    updateFrequency: 'Daily',
-    protocol: 'CoLand',
-    thresholdInfo: 'Rebalances when yield difference exceeds 0.5%'
-  },
-  {
-    id: 'ethereum-defi-maximizer',
-    name: 'Ethereum DeFi Maximizer',
-    description: 'Multi-protocol ETH strategy across Aave, Compound, and Lido',
-    detailedDescription: 'This strategy optimizes ETH yields by dynamically allocating between Aave lending, Compound supply, and Lido staking. The algorithm monitors real-time APY rates across all three protocols and automatically rebalances your ETH to the highest-yielding opportunity. Updates occur every 6 hours to capture rate changes and maximize compound growth.',
-    chain: SUPPORTED_CHAINS.find(c => c.name === 'Ethereum') || SUPPORTED_CHAINS[0],
-    primaryToken: 'ETH',
-    secondaryTokens: ['stETH', 'aETH', 'cETH'],
-    apy: 8.7,
-    riskLevel: 'low',
-    updateFrequency: 'Every 6 hours',
-    protocol: 'Multi-Protocol',
-    thresholdInfo: 'Rebalances when yield difference exceeds 0.3%'
-  },
-  {
-    id: 'arbitrum-stable-yield',
-    name: 'Arbitrum Stable Yield',
-    description: 'USDC yield optimization across Arbitrum DeFi protocols',
-    detailedDescription: 'Focuses on stable yield generation using USDC across Arbitrum\'s DeFi ecosystem. The strategy rotates between GMX, Radiant Capital, and Curve Finance based on the highest stable yields available. Perfect for conservative investors seeking steady returns with minimal impermanent loss risk.',
-    chain: SUPPORTED_CHAINS.find(c => c.name === 'Arbitrum') || SUPPORTED_CHAINS[0],
-    primaryToken: 'USDC',
-    secondaryTokens: ['GMX', 'RDNT', 'CRV'],
-    apy: 6.8,
-    riskLevel: 'low',
-    updateFrequency: 'Daily',
-    protocol: 'Multi-Protocol',
-    thresholdInfo: 'Rebalances when yield difference exceeds 0.2%'
-  },
-  {
-    id: 'uniswap-v3-concentrated',
-    name: 'Uniswap V3 Concentrated Liquidity',
-    description: 'Active liquidity management for maximum fee collection',
-    detailedDescription: 'Advanced Uniswap V3 strategy that actively manages concentrated liquidity positions to maximize fee collection. The strategy automatically adjusts position ranges based on market volatility and rebalances between different fee tiers. Includes automated compounding of collected fees back into the position.',
-    chain: SUPPORTED_CHAINS.find(c => c.name === 'Ethereum') || SUPPORTED_CHAINS[0],
-    primaryToken: 'ETH',
-    secondaryTokens: ['USDC'],
-    apy: 18.3,
-    riskLevel: 'high',
-    updateFrequency: 'Every 2 hours',
-    protocol: 'Uniswap V3',
-    thresholdInfo: 'Adjusts ranges when price moves 2% from center'
-  }
-]
+// Remove hardcoded strategies - use API data from useStrategies hook
 
 const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) => {
   const { address } = useAccount()
-  const currentChainId = useChainId()
-  const [selectedStrategy, setSelectedStrategy] = useState<Strategy>(availableStrategies[0])
+  
+  // Use the strategies hook to get API data
+  const { strategies: availableStrategies, isLoading: isStrategiesLoading } = useStrategies()
+  const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null)
   const [amount, setAmount] = useState('')
   const [isStrategyDropdownOpen, setIsStrategyDropdownOpen] = useState(false)
   const [showStrategyDetails, setShowStrategyDetails] = useState(false)
 
-  // Format APY values to 4 decimal places
-  const formatAPY = (apy: number) => {
-    return apy.toFixed(4)
-  }
-
+  // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
   // Use the vault verification system - only when modal is open
   const {
     hasVault,
@@ -107,7 +34,7 @@ const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) =>
   } = useVaultVerification(isOpen)
 
   // Use the vault address hook for address calculation
-  const { vaultAddress } = useVaultAddress(address, selectedStrategy.chain.id)
+  const { vaultAddress } = useVaultAddress(address, selectedStrategy?.chain?.id ?? 1)
 
   // Event emitter for portfolio updates
   const emit = useEventEmitter()
@@ -115,13 +42,28 @@ const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) =>
   // Get vault token balances (only tokens in the vault can be used for strategies)
   const {
     tokens: vaultTokens,
-    isLoading: isVaultTokensLoading,
-    refetch: refetchVaultTokens,
   } = useVaultTokenBalances(hasVault ? vaultAddress : undefined)
+
+  // Set the first available strategy when strategies load
+  useEffect(() => {
+    if (availableStrategies.length > 0 && !selectedStrategy) {
+      setSelectedStrategy(availableStrategies[0])
+    }
+  }, [availableStrategies, selectedStrategy])
+
+  // Format APY values to 4 decimal places
+  const formatAPY = (apy: number) => {
+    return apy.toFixed(4)
+  }
+
+  // Don't render if no strategy is selected or still loading
+  if (!selectedStrategy || isStrategiesLoading || !selectedStrategy.chain) {
+    return null
+  }
 
   // Find the primary token for the selected strategy
   const primaryToken = vaultTokens.find(t => t.symbol === selectedStrategy.primaryToken) || 
-    getTokensForChain(selectedStrategy.chain.id).find(t => t.symbol === selectedStrategy.primaryToken)
+    (selectedStrategy.chain ? getTokensForChain(selectedStrategy.chain.id).find(t => t.symbol === selectedStrategy.primaryToken) : undefined)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

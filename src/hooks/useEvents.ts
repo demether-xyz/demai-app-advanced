@@ -9,13 +9,20 @@ export const useEventEmitter = () => {
   return useAppStore((state) => state.emit)
 }
 
+// Event types
+export const EVENTS = {
+  PORTFOLIO_REFRESH: 'app.portfolio.refresh',
+  STRATEGY_UPDATE: 'app.strategy.update',
+  OPEN_WINDOW: 'app.openwindow'
+} as const
+
 // Helper hook for opening windows via events
 export const useOpenWindow = () => {
   const emit = useEventEmitter()
 
   return (windowId: string) => {
     // Emit hierarchical event: app.openwindow.{windowId}
-    emit(`app.openwindow.${windowId}`)
+    emit(`${EVENTS.OPEN_WINDOW}.${windowId}`)
   }
 }
 

@@ -119,35 +119,45 @@ export const ERC20_ABI = [
 
 // Supported tokens configuration
 export const SUPPORTED_TOKENS: Record<string, TokenConfig> = {
-  WBTC: {
-    symbol: 'WBTC',
-    name: 'Wrapped Bitcoin',
-    icon: '₿',
-    decimals: 8,
+  SOLVBTC: {
+    symbol: 'SOLVBTC',
+    name: 'SolvBTC',
+    icon: 'btc', // Will be rendered as Bitcoin icon with Solv branding
+    decimals: 18,
     addresses: {
-      42161: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f', // Arbitrum
+      1116: '0x5B1Fb849f1F76217246B8AAAC053b5C7b15b7dc3', // Core
     },
-    coingeckoId: 'wrapped-bitcoin',
+    coingeckoId: 'solvbtc',
+  },
+  BTCB: {
+    symbol: 'BTCB',
+    name: 'Bitcoin',
+    icon: 'btc', // Will be rendered as Bitcoin icon
+    decimals: 18,
+    addresses: {
+      1116: '0x7a6888c85edba8e38f6c7e0485212da602761c08', // Core
+    },
+    coingeckoId: 'bitcoin',
   },
   USDC: {
     symbol: 'USDC',
     name: 'USD Coin',
-    icon: '$',
+    icon: 'usdc', // Will be rendered as USDC icon
     decimals: 6,
     addresses: {
       42161: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // Arbitrum (native USDC)
-      1116: '0xa4151B2B3e269645181dCcF2D426cE75fcbDeca9',
+      1116: '0xa4151B2B3e269645181dCcF2D426cE75fcbDeca9', // Core
     },
     coingeckoId: 'usd-coin',
   },
   USDT: {
     symbol: 'USDT',
     name: 'Tether USD',
-    icon: '₮',
+    icon: 'usdt', // Will be rendered as USDT icon
     decimals: 6,
     addresses: {
       42161: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', // Arbitrum
-      1116: '0x900101d06A7426441Ae63e9AB3B9b0F63Be145F1',
+      1116: '0x900101d06A7426441Ae63e9AB3B9b0F63Be145F1', // Core
     },
     coingeckoId: 'tether',
   },
@@ -205,23 +215,6 @@ export const SUPPORTED_CHAINS: Chain[] = [
     explorerUrl: 'https://scan.coredao.org',
     factoryDeployed: true // TODO: Update based on actual deployment status
   },
-  // Ready for future chains - factory will have identical addresses
-  // { 
-  //   id: 1, 
-  //   name: 'Ethereum', 
-  //   icon: '🔷', 
-  //   nativeCurrency: 'ETH', 
-  //   explorerUrl: 'https://etherscan.io',
-  //   factoryDeployed: false 
-  // },
-  // { 
-  //   id: 137, 
-  //   name: 'Polygon', 
-  //   icon: '🟣', 
-  //   nativeCurrency: 'MATIC', 
-  //   explorerUrl: 'https://polygonscan.com',
-  //   factoryDeployed: false 
-  // },
 ]
 
 // Chain-specific native currency information

@@ -36,19 +36,21 @@
 import React, { useState, useEffect } from 'react'
 import { useAccount, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { ethers } from 'ethers'
-import { XMarkIcon, ChevronDownIcon, ArrowTopRightOnSquareIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, ChevronDownIcon, ArrowTopRightOnSquareIcon, InformationCircleIcon, TrashIcon } from '@heroicons/react/24/outline'
 import DemaiAuthHandler from '@/components/DemaiAuthHandler'
 import { useAuth } from '@/hooks/useAuth'
 import DemaiNavbar from '@/components/DemaiNavbar'
 import DemaiChatInterface from '@/components/DemaiChatInterface'
 import Portfolio from '@/components/Portfolio'
 import TokenIcon from '@/components/TokenIcon'
-import { useEvent, useEventEmitter } from '@/hooks/useEvents'
+import { useEvent, useEventEmitter, EVENTS } from '@/hooks/useEvents'
 import { usePortfolio } from '@/hooks/usePortfolio'
 import { useVaultVerification } from '@/hooks/useVaultVerification'
 import { useTokenBalancesAndApprovals } from '@/hooks/useTokenBalancesAndApprovals'
 import { useVaultTokenBalances } from '@/hooks/useVaultTokenBalances'
 import { useVaultAddress } from '@/hooks/useVaultAddress'
+import { useStrategies } from '@/hooks/useStrategies'
+import { useUserTasks } from '@/hooks/useUserTasks'
 import { getTokensForChain, ERC20_ABI, VAULT_FACTORY_ADDRESS, VAULT_FACTORY_ABI, SUPPORTED_CHAINS, Chain } from '@/config/tokens'
 import { useAppStore } from '@/store'
 
@@ -816,51 +818,32 @@ const DemaiPage = () => {
 
   // Inline Strategy Component (extracted from StrategyTrigger)
   const StrategyComponent = () => {
-    // Define available strategies (from StrategyTrigger)
-    const availableStrategies = [
-      {
-        id: 'aave-usdc-arbitrum',
-        name: 'Aave USDC Lending',
-        description: 'Automated USDC lending on Aave with optimal yield farming',
-        detailedDescription: 'This strategy automatically lends your USDC on Aave V3 to earn lending rewards. The strategy monitors rates and automatically compounds rewards for maximum yield.',
-        chain: SUPPORTED_CHAINS.find(c => c.id === 42161)!,
-        primaryToken: 'USDC',
-        secondaryTokens: ['AAVE'],
-        apy: 18.5,
-        riskLevel: 'low' as const,
-        updateFrequency: 'Daily',
-        protocol: 'Aave V3',
-        thresholdInfo: 'Minimum 10 USDC required'
-      },
-      {
-        id: 'uniswap-eth-usdc-arbitrum',
-        name: 'Uniswap V3 ETH/USDC LP',
-        description: 'Concentrated liquidity provision with automated rebalancing',
-        detailedDescription: 'Provides liquidity to the ETH/USDC pool on Uniswap V3 with concentrated positions. Automatically rebalances when price moves outside the range.',
-        chain: SUPPORTED_CHAINS.find(c => c.id === 42161)!,
-        primaryToken: 'ETH',
-        secondaryTokens: ['USDC'],
-        apy: 24.2,
-        riskLevel: 'medium' as const,
-        updateFrequency: 'Every 6 hours',
-        protocol: 'Uniswap V3',
-        thresholdInfo: 'Minimum 0.1 ETH required'
-      }
-    ]
+    // Load strategies and user tasks from hooks
+    const { strategies: availableStrategies, isLoading: isStrategiesLoading } = useStrategies()
+    const { tasks: userTasks, isLoading: isTasksLoading, deleteTask } = useUserTasks()
 
     const [selectedStrategy, setSelectedStrategy] = useState(availableStrategies[0])
     const [amount, setAmount] = useState('')
     const [isStrategyDropdownOpen, setIsStrategyDropdownOpen] = useState(false)
     const [showStrategyDetails, setShowStrategyDetails] = useState(false)
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Use vault verification
+    // Set initial selected strategy when strategies load
+    useEffect(() => {
+      if (availableStrategies.length > 0 && !selectedStrategy) {
+        setSelectedStrategy(availableStrategies[0])
+      }
+    }, [availableStrategies, selectedStrategy])
+
+    // Use vault verification and auth
     const {
       hasVault: strategyHasVault,
       isLoading: isVaultLoading,
     } = useVaultVerification(true)
+    const { authData } = useAuth()
 
     // Use vault address hook
-    const { vaultAddress } = useVaultAddress(address, selectedStrategy.chain.id)
+    const { vaultAddress } = useVaultAddress(address, selectedStrategy?.chain?.id || selectedStrategy?.chain_id || 42161)
 
     // Get vault token balances
     const {
@@ -870,8 +853,8 @@ const DemaiPage = () => {
     } = useVaultTokenBalances(strategyHasVault ? vaultAddress : undefined)
 
     // Find the primary token for the selected strategy
-    const primaryToken = vaultTokens.find(t => t.symbol === selectedStrategy.primaryToken) || 
-      getTokensForChain(selectedStrategy.chain.id).find(t => t.symbol === selectedStrategy.primaryToken)
+    const primaryToken = vaultTokens.find(t => t.symbol === selectedStrategy?.primaryToken) || 
+      getTokensForChain(selectedStrategy?.chain?.id || selectedStrategy?.chain_id || 42161).find(t => t.symbol === selectedStrategy?.primaryToken)
 
     const handleMaxClick = () => {
       if (primaryToken && 'balance' in primaryToken) {
@@ -888,7 +871,7 @@ const DemaiPage = () => {
       }
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault()
 
       if (!address) {
@@ -901,22 +884,130 @@ const DemaiPage = () => {
         return
       }
 
-      // Execute strategy
-      emit('app.portfolio.refresh')
-      setAmount('')
+      if (!selectedStrategy || !amount) {
+        alert('Please select a strategy and enter an amount.')
+        return
+      }
+
+      try {
+        if (!authData?.signature) {
+          alert('Please authenticate first.')
+          return
+        }
+
+        setIsSubmitting(true)
+        const response = await fetch('http://localhost:5050/strategies/tasks/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: address,
+            signature: authData.signature,
+            strategy_id: selectedStrategy.id,
+            amount: amount,
+            vault_address: vaultAddress,
+            chain_id: selectedStrategy?.chain?.id || selectedStrategy?.chain_id || 42161,
+            interval_hours: selectedStrategy.default_interval_hours || 24,
+            params: {},
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || 'Failed to create strategy')
+        }
+
+        // Success - emit strategy update event and reset form
+        emit(EVENTS.STRATEGY_UPDATE)
+        setAmount('')
+        setIsSubmitting(false)
+      } catch (error) {
+        console.error('Error creating strategy:', error)
+        alert(`Failed to create strategy: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
+    }
+
+    // Don't render if no strategy is selected
+    if (!selectedStrategy) {
+      return (
+        <div className="rounded-2xl border border-slate-700/40 bg-slate-900/80 backdrop-blur-md p-6 h-full overflow-y-auto">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent mx-auto mb-4"></div>
+              <div className="text-gray-400">Loading strategies...</div>
+            </div>
+          </div>
+        </div>
+      )
     }
 
     return (
-      <div className="rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-6 h-full overflow-y-auto">
+      <div className="rounded-2xl border border-slate-700/40 bg-slate-900/80 backdrop-blur-md p-6 h-full overflow-y-auto">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">Strategy Execution</h2>
+          <h2 className="text-2xl font-semibold text-white">Strategy Manager</h2>
           <button
             onClick={() => setCurrentView('portfolio')}
             className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-700/50 hover:text-gray-200"
           >
-            <XMarkIcon className="h-5 w-5" />
+            <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
+
+        {/* Active Strategies Section */}
+        {isTasksLoading ? (
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-white mb-4">Active Strategies</h3>
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent mx-auto mb-2"></div>
+                <div className="text-gray-400 text-sm">Loading your strategies...</div>
+              </div>
+            </div>
+          </div>
+        ) : userTasks.length > 0 && (
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-white mb-4">Active Strategies</h3>
+            <div className="space-y-3">
+              {userTasks.map((task) => {
+                const taskStrategy = availableStrategies.find(s => s.id === task.strategy_id)
+                return (
+                  <div key={task._id} className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-lg">{taskStrategy?.chain?.icon || taskStrategy?.chain_icon || '⚡'}</span>
+                        <TokenIcon symbol={taskStrategy?.primaryToken || 'ETH'} className="w-5 h-5" />
+                        <div>
+                          <div className="font-medium text-white">{taskStrategy?.name || task.strategy_id}</div>
+                          <div className="text-sm text-gray-400">{taskStrategy?.protocol}</div>
+                        </div>
+                      </div>
+                                             <div className="flex items-center space-x-2">
+                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                           task.status === 'active' ? 'bg-green-500/20 text-green-400' :
+                           task.status === 'paused' ? 'bg-yellow-500/20 text-yellow-400' :
+                           'bg-gray-500/20 text-gray-400'
+                         }`}>
+                           {task.status}
+                         </span>
+                         <div className="text-sm text-gray-400">
+                           {taskStrategy?.apy || 0}% APY
+                         </div>
+                         <button
+                           onClick={() => deleteTask(task._id)}
+                           className="p-1 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors"
+                           title="Delete strategy"
+                         >
+                           <TrashIcon className="h-4 w-4" />
+                         </button>
+                       </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Strategy Selection */}
@@ -926,13 +1017,13 @@ const DemaiPage = () => {
               <button
                 type="button"
                 onClick={() => setIsStrategyDropdownOpen(!isStrategyDropdownOpen)}
-                className="w-full rounded-lg border border-gray-600/60 bg-gray-800/80 px-4 py-4 text-left text-white transition-all duration-200 hover:border-gray-500/60 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+                className="w-full rounded-xl border border-gray-600/60 bg-gray-800/80 px-4 py-4 text-left text-white transition-all duration-200 hover:border-gray-500/60 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <div className="flex items-center space-x-2">
-                        <span className="text-lg">{selectedStrategy.chain.icon}</span>
+                        <span className="text-lg">{selectedStrategy?.chain?.icon || selectedStrategy?.chain_icon || '⚡'}</span>
                         <TokenIcon 
                           symbol={selectedStrategy.primaryToken} 
                           className="w-5 h-5"
@@ -956,7 +1047,7 @@ const DemaiPage = () => {
               </button>
               
               {isStrategyDropdownOpen && (
-                <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-600/60 bg-gray-800/95 shadow-lg backdrop-blur-md">
+                                  <div className="absolute z-10 mt-1 w-full rounded-xl border border-gray-600/60 bg-gray-800/95 shadow-lg backdrop-blur-md">
                   <div className="max-h-80 overflow-y-auto p-2">
                     {availableStrategies.map((strategy) => (
                       <button
@@ -999,7 +1090,7 @@ const DemaiPage = () => {
           </div>
 
           {/* Strategy Details */}
-          <div className="rounded-lg border border-gray-700/50 bg-gray-800/40 p-4">
+          <div className="rounded-xl border border-gray-700/50 bg-gray-800/40 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-gray-300">Strategy Details</h3>
               <button
@@ -1056,7 +1147,7 @@ const DemaiPage = () => {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.0"
-                className="w-full rounded-lg border border-gray-600/60 bg-gray-800/80 py-3 px-4 pr-16 text-white placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+                className="w-full rounded-xl border border-gray-600/60 bg-gray-800/80 py-3 px-4 pr-16 text-white placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
               />
               {primaryToken && 'balance' in primaryToken && (
                 <button
@@ -1080,20 +1171,26 @@ const DemaiPage = () => {
               isVaultLoading ||
               !primaryToken
             }
-            className={`w-full rounded-lg px-4 py-3 font-medium transition-colors ${
+            className={`w-full rounded-xl px-4 py-3 font-medium transition-colors ${
               amount && parseFloat(amount) > 0 && strategyHasVault && !isVaultLoading && primaryToken
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                 : 'cursor-not-allowed bg-gray-700 text-gray-400'
             }`}
           >
-            {!strategyHasVault && !isVaultLoading
-              ? 'Deploy Vault First'
-              : isVaultLoading
-                ? 'Loading Vault...'
-                : !primaryToken
-                  ? `No ${selectedStrategy.primaryToken} in Vault`
-                  : `Execute ${selectedStrategy.name}`
-            }
+            {isSubmitting ? (
+              <div className="flex items-center justify-center space-x-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                <span>Creating Strategy...</span>
+              </div>
+            ) : !strategyHasVault && !isVaultLoading ? (
+              'Deploy Vault First'
+            ) : isVaultLoading ? (
+              'Loading Vault...'
+            ) : !primaryToken ? (
+              `No ${selectedStrategy.primaryToken} in Vault`
+            ) : (
+              `Execute ${selectedStrategy.name}`
+            )}
           </button>
         </form>
       </div>

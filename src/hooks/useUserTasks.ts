@@ -3,6 +3,9 @@ import { useAccount } from 'wagmi'
 import { useAuth } from './useAuth'
 import { useEvent, EVENTS } from './useEvents'
 
+// Use the same API base URL as other services
+const API_BASE_URL = process.env.NEXT_PUBLIC_DEMAI_API_URL || 'http://localhost:5050'
+
 export interface UserTask {
   _id: string
   user_address: string
@@ -47,7 +50,7 @@ export const useUserTasks = () => {
     setError(null)
 
     try {
-      const url = `http://localhost:5050/strategies/tasks/?wallet_address=${address}&signature=${authData.signature}`
+      const url = `${API_BASE_URL}/strategies/tasks/?wallet_address=${address}&signature=${authData.signature}`
       console.log('useUserTasks: Fetching from URL:', url)
       
       const response = await fetch(url, {
@@ -78,7 +81,7 @@ export const useUserTasks = () => {
     if (!address || !authData?.signature) return false
 
     try {
-      const response = await fetch(`http://localhost:5050/strategies/tasks/pause`, {
+      const response = await fetch(`${API_BASE_URL}/strategies/tasks/pause`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +110,7 @@ export const useUserTasks = () => {
     if (!address || !authData?.signature) return false
 
     try {
-      const response = await fetch(`http://localhost:5050/strategies/tasks/resume`, {
+      const response = await fetch(`${API_BASE_URL}/strategies/tasks/resume`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,7 +139,7 @@ export const useUserTasks = () => {
     if (!address || !authData?.signature) return false
 
     try {
-      const response = await fetch(`http://localhost:5050/strategies/tasks/delete`, {
+      const response = await fetch(`${API_BASE_URL}/strategies/tasks/delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -216,10 +216,17 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
       refetchTokens()
       // Also refetch vault tokens to update vault balances
       refetchVaultTokens()
-      // Emit portfolio update event
-      emit('app.portfolio.refresh')
+      
+      // Add a delay before emitting portfolio refresh to ensure blockchain state is updated
+      const refreshTimer = setTimeout(() => {
+        // Emit portfolio update event
+        emit('app.portfolio.refresh')
+      }, 3000) // 3 second delay
+      
       // Reset form
       setAmount('')
+      
+      return () => clearTimeout(refreshTimer)
     }
   }, [isDepositSuccess, refetchTokens, refetchVaultTokens, emit, depositHash])
 
@@ -230,10 +237,17 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
       refetchTokens()
       // Also refetch user tokens to update wallet balances
       refetchUserTokens()
-      // Emit portfolio update event
-      emit('app.portfolio.refresh')
+      
+      // Add a delay before emitting portfolio refresh to ensure blockchain state is updated
+      const refreshTimer = setTimeout(() => {
+        // Emit portfolio update event
+        emit('app.portfolio.refresh')
+      }, 3000) // 3 second delay
+      
       // Reset form
       setAmount('')
+      
+      return () => clearTimeout(refreshTimer)
     }
   }, [isWithdrawSuccess, refetchTokens, refetchUserTokens, emit, withdrawHash])
 
@@ -719,6 +733,9 @@ const VaultModal: React.FC<VaultModalProps> = ({ isOpen, onClose }) => {
                   </div>
                   <div className="text-xs text-green-200 mb-3">
                     Your {selectedToken?.symbol} has been {depositHash ? 'deposited to' : 'withdrawn from'} your vault.
+                    <span className="block mt-1 text-green-300">
+                      Portfolio will refresh automatically in a few seconds...
+                    </span>
                   </div>
                   <a
                     href={`${selectedChain.explorerUrl}/tx/${depositHash || withdrawHash}`}

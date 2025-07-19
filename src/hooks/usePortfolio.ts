@@ -38,10 +38,11 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
   const emit = useEventEmitter()
 
   // Fetch portfolio data using wallet address
-  const fetchPortfolio = async (walletAddress: string, force: boolean = false) => {
+  const fetchPortfolio = async (walletAddress: string, force: boolean = false, retryCount: number = 0) => {
     console.log('🔄 [Portfolio] Fetching portfolio data...', {
       walletAddress,
       force,
+      retryCount,
       timestamp: new Date().toISOString()
     })
 
@@ -56,9 +57,11 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
       return
     }
 
-    // Set loading state immediately
-    console.log('⏳ [Portfolio] Setting loading state to true')
-    setPortfolioLoading(walletAddress, true)
+    // Set loading state immediately (only on first attempt)
+    if (retryCount === 0) {
+      console.log('⏳ [Portfolio] Setting loading state to true')
+      setPortfolioLoading(walletAddress, true)
+    }
 
     try {
       const result = await fetchPortfolioData(walletAddress, force)
@@ -84,6 +87,21 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
           isLoading: false,  // Explicitly set loading to false
           error: null,
           lastUpdated: Date.now(),
+        }
+
+        // Check if we should retry (only when force refreshing and value is still 0)
+        if (force && portfolioData.total_value_usd === 0 && retryCount < 3) {
+          console.log('🔁 [Portfolio] Portfolio shows zero value after refresh, retrying...', {
+            retryCount: retryCount + 1,
+            timestamp: new Date().toISOString()
+          })
+          
+          // Wait a bit longer before retrying
+          setTimeout(() => {
+            fetchPortfolio(walletAddress, true, retryCount + 1)
+          }, 2000) // 2 second delay between retries
+          
+          return // Don't update the store yet
         }
 
         console.log('💾 [Portfolio] Updating store with new data', {

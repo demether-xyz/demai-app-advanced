@@ -125,7 +125,7 @@ export const SUPPORTED_TOKENS: Record<string, TokenConfig> = {
     icon: 'btc', // Will be rendered as Bitcoin icon with Solv branding
     decimals: 18,
     addresses: {
-      1116: '0x5B1Fb849f1F76217246B8AAAC053b5C7b15b7dc3', // Core
+      1116: '0xe04d21d999FaEDf1e72AdE6629e20A11a1ed14FA', // Core
     },
     coingeckoId: 'solvbtc',
   },

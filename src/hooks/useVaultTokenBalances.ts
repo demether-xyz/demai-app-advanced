@@ -1,6 +1,7 @@
 import { useChainId, useReadContracts } from 'wagmi'
 import { formatUnits } from 'ethers'
 import { getTokensForChain } from '../config/tokens'
+import { formatTokenBalance } from '../utils/formatBalance'
 
 export interface VaultTokenBalance {
   symbol: string
@@ -102,7 +103,7 @@ export const useVaultTokenBalances = (
       icon: tokenConfig.icon,
       decimals: tokenConfig.decimals,
       address: tokenAddress,
-      balance: parseFloat(balance).toFixed(6),
+      balance: formatTokenBalance(balance),
       balanceRaw,
       isLoading: isLoading,
       error: tokenError,

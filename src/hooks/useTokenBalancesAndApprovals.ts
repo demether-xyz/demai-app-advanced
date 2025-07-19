@@ -2,6 +2,7 @@ import { } from 'react'
 import { useAccount, useChainId, useReadContracts } from 'wagmi'
 import { formatUnits } from 'ethers'
 import { getTokensForChain, ERC20_ABI } from '../config/tokens'
+import { formatTokenBalance } from '../utils/formatBalance'
 
 export interface TokenBalanceAndApproval {
   symbol: string
@@ -118,9 +119,9 @@ export const useTokenBalancesAndApprovals = (
       icon: tokenConfig.icon,
       decimals: tokenConfig.decimals,
       address: tokenAddress,
-      balance: parseFloat(balance).toFixed(6),
+      balance: formatTokenBalance(balance),
       balanceRaw,
-      allowance: parseFloat(allowance).toFixed(6),
+      allowance: formatTokenBalance(allowance),
       allowanceRaw,
       hasAllowance: allowanceRaw > BigInt(0),
       isLoading: isLoading,

@@ -84,9 +84,9 @@ const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) =>
       strategyName: selectedStrategy.name,
       amount: parseFloat(amount),
       primaryToken: selectedStrategy.primaryToken,
-      chain: selectedStrategy.chain.name,
+      chain: selectedStrategy.chain?.name || 'Unknown',
       vaultAddress,
-      chainId: selectedStrategy.chain.id
+      chainId: selectedStrategy.chain?.id || 0
     })
     
     // Emit portfolio update event
@@ -196,7 +196,7 @@ const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) =>
                           <div className="flex-1">
                             <div className="flex items-center space-x-3 mb-2">
                               <div className="flex items-center space-x-2">
-                                <span className="text-lg">{strategy.chain.icon}</span>
+                                <span className="text-lg">{strategy.chain?.icon || '🔗'}</span>
                                 <TokenIcon 
                                   symbol={strategy.primaryToken} 
                                   className="w-5 h-5"

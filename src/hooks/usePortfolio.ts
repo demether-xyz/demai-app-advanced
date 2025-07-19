@@ -6,7 +6,7 @@ import { getPortfolioData as fetchPortfolioData } from '@/services/demaiApi'
 import { useAuth } from '@/hooks/useAuth'
 
 export const usePortfolio = (shouldFetch: boolean = true) => {
-  const { isConnected, address } = useAccount()
+  const { address } = useAccount()
   const { hasValidSignature } = useAuth()
   
   // Store actions and selectors
@@ -35,7 +35,6 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
 
   // Listen for portfolio refresh events
   const refreshEvent = useEvent('app.portfolio.refresh')
-  const emit = useEventEmitter()
 
   // Fetch portfolio data using wallet address
   const fetchPortfolio = async (walletAddress: string, force: boolean = false, retryCount: number = 0) => {

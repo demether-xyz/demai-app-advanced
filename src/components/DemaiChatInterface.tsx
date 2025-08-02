@@ -1,15 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { sendMessageToDemai } from '../services/demaiApi'
-import { useOpenWindow } from '../hooks/useEvents'
 import { useAccount, useChainId } from 'wagmi'
 import { useVaultAddress } from '../hooks/useVaultAddress'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { useAppStore, ChatMessage } from '../store'
 
-interface ChatMessage {
-  id: number
-  sender: 'user' | 'ai' | 'system'
-  text: string
-  timestamp: Date
-}
 
 interface DemaiChatInterfaceProps {
   className?: string
@@ -17,11 +13,17 @@ interface DemaiChatInterfaceProps {
 }
 
 const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '', mode = 'floating' }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  // Get state from store
+  const messages = useAppStore((state) => state.chat.messages)
+  const isLoading = useAppStore((state) => state.chat.isLoading)
+  const addChatMessage = useAppStore((state) => state.addChatMessage)
+  const setChatLoading = useAppStore((state) => state.setChatLoading)
+  const clearChatMessages = useAppStore((state) => state.clearChatMessages)
+  
+  // Local state for UI-specific things
   const [inputValue, setInputValue] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   const [isCollapsing, setIsCollapsing] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [shouldMaintainFocus, setShouldMaintainFocus] = useState(false)
   const [isUserSelecting, setIsUserSelecting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -35,21 +37,6 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
   const { address } = useAccount()
   const chainId = useChainId()
   const { vaultAddress } = useVaultAddress(address, chainId)
-  
-  // Add openWindow hook for triggering window events
-  const openWindow = useOpenWindow()
-
-  // Add hardcoded window IDs list
-  const AVAILABLE_WINDOW_IDS = [
-    'high-yield', 'compound-eth', 'curve-3pool', 'uniswap-v4', 'portfolio', 'staking-rewards',
-    'yearn-vault', 'balancer-pool', 'convex-crv', 'market-data', 'sushiswap-farm', 'maker-dai',
-    'rocket-pool', 'frax-share', 'lido-steth', 'gmx-glp', 'pendle-yield', 'tokemak-reactor',
-    'olympus-ohm', 'ribbon-vault', 'risk-analysis', 'alerts', 'ai-strategy', 'smart-contract-risk',
-    'liquidation-alert', 'impermanent-loss', 'protocol-governance', 'bridge-security',
-    'oracle-manipulation', 'regulatory-risk', 'flash-loan-attack', 'slippage-alert',
-    'rug-pull-detector', 'mev-protection', 'whale-movement', 'correlation-risk',
-    'gas-optimization', 'depegging-risk', 'validator-risk', 'insurance-coverage'
-  ]
 
   // Robust focus management using useCallback for stable reference
   const maintainInputFocus = useCallback(() => {
@@ -247,10 +234,10 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
       timestamp: new Date(),
     }
 
-    setMessages((prev) => [...prev, userMessage])
+    addChatMessage(userMessage)
     const messageText = inputValue.trim()
     setInputValue('')
-    setIsLoading(true)
+    setChatLoading(true)
 
     // Immediately restore focus after clearing input - don't wait for API response
     isSubmittingRef.current = false
@@ -268,25 +255,8 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
       let aiResponseText: string
       
       if (response.success && response.data) {
-        const aiResponse = response.data
-        aiResponseText = aiResponse.text
-        
-        // Open window if specified in JSON response
-        if (aiResponse.windows && Array.isArray(aiResponse.windows)) {
-          // First close all currently open windows
-          openWindow('close-all')
-          
-          // Then open new windows with a small delay to ensure close happens first
-          const windowsToOpen = aiResponse.windows
-          setTimeout(() => {
-            windowsToOpen.forEach((windowId: string) => {
-              if (AVAILABLE_WINDOW_IDS.includes(windowId)) {
-                openWindow(windowId)
-              }
-            })
-          }, 100)
-        }
-        
+        // response.data is the text string from the API
+        aiResponseText = response.data
       } else {
         aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'
       }
@@ -298,7 +268,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
         timestamp: new Date(),
       }
 
-      setMessages((prev) => [...prev, aiMessage])
+      addChatMessage(aiMessage)
     } catch (error) {
       const errorMessage: ChatMessage = {
         id: Date.now() + 1,
@@ -306,9 +276,9 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
         text: 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.',
         timestamp: new Date(),
       }
-      setMessages((prev) => [...prev, errorMessage])
+      addChatMessage(errorMessage)
     } finally {
-      setIsLoading(false)
+      setChatLoading(false)
       // Ensure focus is still maintained after response
       if (!shouldMaintainFocus) {
         setShouldMaintainFocus(true)
@@ -332,9 +302,9 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
       timestamp: new Date(),
     }
 
-    setMessages((prev) => [...prev, userMessage])
+    addChatMessage(userMessage)
     const messageText = textContent.trim()
-    setIsLoading(true)
+    setChatLoading(true)
 
     // Immediately restore focus after message is sent
     isSubmittingRef.current = false
@@ -352,25 +322,8 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
         let aiResponseText: string
         
         if (response.success && response.data) {
-          const aiResponse = response.data
-          aiResponseText = aiResponse.text
-          
-          // Open window if specified in JSON response
-          if (aiResponse.windows && Array.isArray(aiResponse.windows)) {
-            // First close all currently open windows
-            openWindow('close-all')
-            
-            // Then open new windows with a small delay to ensure close happens first
-            const windowsToOpen = aiResponse.windows
-            setTimeout(() => {
-              windowsToOpen.forEach((windowId: string) => {
-                if (AVAILABLE_WINDOW_IDS.includes(windowId)) {
-                  openWindow(windowId)
-                }
-              })
-            }, 100)
-          }
-          
+          // response.data is the text string from the API
+          aiResponseText = response.data
         } else {
           aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'
         }
@@ -382,7 +335,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
           timestamp: new Date(),
         }
 
-        setMessages((prev) => [...prev, aiMessage])
+        addChatMessage(aiMessage)
       } catch (error) {
         const errorMessage: ChatMessage = {
           id: Date.now() + 1,
@@ -390,9 +343,9 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
           text: 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.',
           timestamp: new Date(),
         }
-        setMessages((prev) => [...prev, errorMessage])
+        addChatMessage(errorMessage)
       } finally {
-        setIsLoading(false)
+        setChatLoading(false)
         // Ensure focus is still maintained after response
         if (!shouldMaintainFocus) {
           setShouldMaintainFocus(true)
@@ -424,7 +377,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
     setTimeout(() => {
       setIsExpanded(false)
       setIsCollapsing(false)
-      setMessages([])
+      // Don't clear messages when collapsing - they should persist
     }, 400) // Match the slide-down animation duration
   }
 
@@ -503,12 +456,12 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
                     <div className="ml-4 text-white/60 select-text">Ready for queries.</div>
                   </div>
                   <div className="mt-6 text-sm text-white/80">
-                    <div className="mb-2 text-blue-400 select-none">Available commands:</div>
+                    <div className="mb-2 text-blue-400 select-none">Available tools:</div>
                     <div className="ml-4 space-y-1 text-white/60">
-                      <div className="select-text">• analyze [token] - Analyze yield opportunities</div>
-                      <div className="select-text">• portfolio - Review your current positions</div>
-                      <div className="select-text">• risks [protocol] - Assess protocol risks</div>
-                      <div className="select-text">• optimize - Get yield optimization suggestions</div>
+                      <div className="select-text">• research - Research tokens and protocols</div>
+                      <div className="select-text">• portfolio - View your holdings across all chains</div>
+                      <div className="select-text">• swap [token] - Swap between tokens</div>
+                      <div className="select-text">• deposit/withdraw - Manage lending positions</div>
                     </div>
                   </div>
                 </div>
@@ -518,19 +471,29 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
                   {messages.map((message) => (
                     <div key={message.id} className="group">
                       {message.sender === 'user' ? (
-                        <div className="flex items-start space-x-2">
-                          <span className="flex-shrink-0 text-green-400 select-none">user@demai:~$</span>
-                          <div className="flex-1 break-words whitespace-pre-wrap text-white/90 select-text">{message.text}</div>
+                        <div className="mb-3 bg-white/5 rounded-lg p-3">
+                          <div className="text-green-400 select-none mb-1">user@demai:~$</div>
+                          <div className="break-words whitespace-pre-wrap text-white/90 select-text">{message.text}</div>
                         </div>
                       ) : (
-                        <div className="mt-2 mb-4">
-                          <div className="mb-1 flex items-center space-x-2">
-                            <span className="flex-shrink-0 text-blue-400 select-none">demai@assistant:</span>
-                            <span className="text-xs text-white/40 select-none">
-                              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                        <div className="mb-3">
+                          <div className="text-blue-400 select-none mb-1">demai@assistant:~$</div>
+                          <div className="break-words text-white/80 select-text prose prose-invert prose-sm max-w-none">
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({children}) => <p className="mb-2">{children}</p>,
+                                ul: ({children}) => <ul className="my-1 list-disc pl-5">{children}</ul>,
+                                li: ({children}) => <li className="my-0.5">{children}</li>,
+                                strong: ({children}) => <strong className="text-blue-400 font-semibold">{children}</strong>,
+                                em: ({children}) => <em className="text-emerald-400">{children}</em>,
+                                code: ({children}) => <code className="bg-slate-800 px-1 py-0.5 rounded text-sm">{children}</code>,
+                                pre: ({children}) => <pre className="bg-slate-800 p-2 rounded-lg overflow-x-auto my-2">{children}</pre>,
+                              }}
+                            >
+                              {message.text}
+                            </ReactMarkdown>
                           </div>
-                          <div className="ml-6 leading-relaxed break-words whitespace-pre-wrap text-white/80 select-text">{message.text}</div>
                         </div>
                       )}
                     </div>
@@ -678,12 +641,12 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
                     <div className="ml-4 text-white/60 select-text">Ready for queries.</div>
                   </div>
                   <div className="mt-6 text-sm text-white/80">
-                    <div className="mb-2 text-blue-400 select-none">Available commands:</div>
+                    <div className="mb-2 text-blue-400 select-none">Available tools:</div>
                     <div className="ml-4 space-y-1 text-white/60">
-                      <div className="select-text">• analyze [token] - Analyze yield opportunities</div>
-                      <div className="select-text">• portfolio - Review your current positions</div>
-                      <div className="select-text">• risks [protocol] - Assess protocol risks</div>
-                      <div className="select-text">• optimize - Get yield optimization suggestions</div>
+                      <div className="select-text">• research - Research tokens and protocols</div>
+                      <div className="select-text">• portfolio - View your holdings across all chains</div>
+                      <div className="select-text">• swap [token] - Swap between tokens</div>
+                      <div className="select-text">• deposit/withdraw - Manage lending positions</div>
                     </div>
                   </div>
                 </div>
@@ -693,19 +656,29 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
                   {messages.map((message) => (
                     <div key={message.id} className="group">
                       {message.sender === 'user' ? (
-                        <div className="flex items-start space-x-2">
-                          <span className="flex-shrink-0 text-green-400 select-none">user@demai:~$</span>
-                          <div className="flex-1 break-words whitespace-pre-wrap text-white/90 select-text">{message.text}</div>
+                        <div className="mb-3 bg-white/5 rounded-lg p-3">
+                          <div className="text-green-400 select-none mb-1">user@demai:~$</div>
+                          <div className="break-words whitespace-pre-wrap text-white/90 select-text">{message.text}</div>
                         </div>
                       ) : (
-                        <div className="mt-2 mb-4">
-                          <div className="mb-1 flex items-center space-x-2">
-                            <span className="flex-shrink-0 text-blue-400 select-none">demai@assistant:</span>
-                            <span className="text-xs text-white/40 select-none">
-                              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                        <div className="mb-3">
+                          <div className="text-blue-400 select-none mb-1">demai@assistant:~$</div>
+                          <div className="break-words text-white/80 select-text prose prose-invert prose-sm max-w-none">
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                p: ({children}) => <p className="mb-2">{children}</p>,
+                                ul: ({children}) => <ul className="my-1 list-disc pl-5">{children}</ul>,
+                                li: ({children}) => <li className="my-0.5">{children}</li>,
+                                strong: ({children}) => <strong className="text-blue-400 font-semibold">{children}</strong>,
+                                em: ({children}) => <em className="text-emerald-400">{children}</em>,
+                                code: ({children}) => <code className="bg-slate-800 px-1 py-0.5 rounded text-sm">{children}</code>,
+                                pre: ({children}) => <pre className="bg-slate-800 p-2 rounded-lg overflow-x-auto my-2">{children}</pre>,
+                              }}
+                            >
+                              {message.text}
+                            </ReactMarkdown>
                           </div>
-                          <div className="ml-6 leading-relaxed break-words whitespace-pre-wrap text-white/80 select-text">{message.text}</div>
                         </div>
                       )}
                     </div>

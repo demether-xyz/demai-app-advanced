@@ -1,4 +1,3 @@
--fix refresh button
-- swap asset in Core
 - automation: refresh based on yield
+- fix refresh button
 - notifications

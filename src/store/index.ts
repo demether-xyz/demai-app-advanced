@@ -1,5 +1,13 @@
 import { create } from 'zustand'
 
+// Chat types
+export interface ChatMessage {
+  id: number
+  sender: 'user' | 'ai' | 'system'
+  text: string
+  timestamp: Date
+}
+
 // Token balance and approval types
 export interface TokenBalanceAndApproval {
   symbol: string
@@ -95,6 +103,18 @@ interface EventState {
   // Get latest surface request for a card
   getLatestSurfaceRequest: (cardId: string) => { cardId: string; timestamp: number; count: number } | null
   
+  // Chat system
+  chat: {
+    messages: ChatMessage[]
+    isLoading: boolean
+  }
+  
+  // Chat actions
+  addChatMessage: (message: ChatMessage) => void
+  setChatMessages: (messages: ChatMessage[]) => void
+  clearChatMessages: () => void
+  setChatLoading: (isLoading: boolean) => void
+  
   // Vault verification system
   vaultVerification: {
     // Map of chainId -> userAddress -> vaultAddress (null if queried but no vault, undefined if not queried)
@@ -146,6 +166,12 @@ interface EventState {
 // Create the app store with event system
 export const useAppStore = create<EventState>((set, get) => ({
   events: {},
+  
+  // Chat system initial state
+  chat: {
+    messages: [],
+    isLoading: false,
+  },
 
   // Hierarchical event system - emitting "app.openwindow.curve123" creates events for:
   // "app", "app.openwindow", and "app.openwindow.curve123"
@@ -550,5 +576,42 @@ export const useAppStore = create<EventState>((set, get) => ({
         }
       }
     })
+  },
+  
+  // Chat actions
+  addChatMessage: (message: ChatMessage) => {
+    set((state) => ({
+      chat: {
+        ...state.chat,
+        messages: [...state.chat.messages, message],
+      },
+    }))
+  },
+  
+  setChatMessages: (messages: ChatMessage[]) => {
+    set((state) => ({
+      chat: {
+        ...state.chat,
+        messages,
+      },
+    }))
+  },
+  
+  clearChatMessages: () => {
+    set((state) => ({
+      chat: {
+        ...state.chat,
+        messages: [],
+      },
+    }))
+  },
+  
+  setChatLoading: (isLoading: boolean) => {
+    set((state) => ({
+      chat: {
+        ...state.chat,
+        isLoading,
+      },
+    }))
   },
 }))

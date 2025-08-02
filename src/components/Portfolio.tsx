@@ -6,6 +6,49 @@ import TokenIcon from './TokenIcon'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
 import { useAppStore, PortfolioData } from '@/store'
 
+// Protocol display name mapping
+const PROTOCOL_DISPLAY_NAMES: Record<string, string> = {
+  'aave': 'Aave',
+  'colend': 'Colend',
+  'compound': 'Compound',
+  'maker': 'Maker',
+  'uniswap': 'Uniswap',
+  'sushiswap': 'SushiSwap',
+  'curve': 'Curve',
+  'balancer': 'Balancer',
+  'yearn': 'Yearn',
+  'convex': 'Convex',
+  'dforce': 'dForce',
+  'benqi': 'BENQI',
+  'traderjoe': 'Trader Joe',
+}
+
+// Helper function to get protocol display name
+const getProtocolDisplayName = (protocol: string): string => {
+  return PROTOCOL_DISPLAY_NAMES[protocol.toLowerCase()] || protocol
+}
+
+// Helper function to format asset type display
+const formatAssetType = (assetType: string, chainName?: string): string => {
+  // Special case: Aave on Core chain is actually Colend
+  if (assetType.toLowerCase().includes('aave') && chainName?.toLowerCase().includes('core')) {
+    return 'Colend'
+  }
+  
+  // Handle common patterns
+  let formatted = assetType.toLowerCase()
+    .replace('aave_v3', 'Aave')
+    .replace('aave_v2', 'Aave')
+    .replace('compound_v3', 'Compound')
+    .replace('compound_v2', 'Compound')
+    .replace(/_/g, ' ')
+  
+  // Capitalize first letter of each word
+  return formatted.split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 export interface PortfolioCardData {
   id: string
   title: string
@@ -49,7 +92,7 @@ export const getPortfolioCardContent = (metrics: PortfolioMetrics, portfolioData
           {Object.entries(safePortfolioData.strategies).slice(0, 2).map(([key, strategy]: [string, any]) => (
             <div key={key} className="flex items-center justify-between text-xs">
               <span className="text-blue-400 capitalize">
-                {strategy.protocol} {strategy.strategy?.replace('_', ' ')}
+                {getProtocolDisplayName(strategy.protocol)} {strategy.strategy?.replace('_', ' ')}
               </span>
               <span className="text-emerald-400">
                 ${strategy.total_value_usd?.toLocaleString() || '0'}
@@ -144,7 +187,7 @@ export const getPortfolioExpandedContent = (metrics: PortfolioMetrics, portfolio
                   <div>
                     <h5 className="font-medium text-slate-200">{chainName}</h5>
                     <div className="text-xs text-slate-400">
-                      {Object.keys(chainData.tokens || {}).length} tokens, {Object.keys(chainData.strategies || {}).length} strategies
+                      {Object.keys(chainData.tokens || {}).length} tokens, {Object.keys(chainData.assets || {}).length} assets, {Object.keys(chainData.strategies || {}).length} strategies
                     </div>
                   </div>
                 </div>
@@ -182,6 +225,41 @@ export const getPortfolioExpandedContent = (metrics: PortfolioMetrics, portfolio
                 </div>
               )}
 
+              {/* Asset Token Holdings */}
+              {Object.keys(chainData.assets || {}).length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <h6 className="text-sm font-medium text-slate-300 mb-2">
+                    Asset Tokens (Yield Bearing)
+                  </h6>
+                  {Object.entries(chainData.assets).map(([assetKey, asset]: [string, any]) => (
+                    <div key={assetKey} className="rounded-lg bg-emerald-900/20 border border-emerald-700/30 p-3 mb-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium text-emerald-400 capitalize text-sm">
+                          {formatAssetType(asset.asset_type || 'Asset', chainName)}
+                        </div>
+                        <div className="text-sm text-emerald-400">
+                          ${asset.total_value_usd?.toLocaleString() || '0'}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        {Object.entries(asset.tokens || {}).map(([tokenSymbol, token]: [string, any]) => (
+                          <div key={tokenSymbol} className="flex items-center justify-between text-xs pl-2">
+                            <div className="flex items-center">
+                              <TokenIcon symbol={tokenSymbol} className="w-5 h-5 mr-2" />
+                              <div className="font-mono text-slate-300">{tokenSymbol}</div>
+                            </div>
+                            <div className='text-right'>
+                              <div className="font-medium text-slate-200">{token.balance?.toFixed(4) || '0'}</div>
+                              <div className="text-slate-400">${token.value_usd?.toLocaleString() || '0'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Chain Strategy Positions */}
               {Object.keys(chainData.strategies || {}).length > 0 && (
                 <div className="space-y-2">
@@ -190,7 +268,7 @@ export const getPortfolioExpandedContent = (metrics: PortfolioMetrics, portfolio
                                     <div key={strategyKey} className="rounded-lg bg-slate-900/50 p-3">
                   <div className="flex items-center justify-between mb-2">
                     <div className="font-medium text-slate-200 capitalize text-sm">
-                      {strategy.protocol} - {strategy.strategy?.replace('_', ' ') || 'Strategy'}
+                      {getProtocolDisplayName(strategy.protocol)} - {strategy.strategy?.replace('_', ' ') || 'Strategy'}
                     </div>
                     <div className="text-sm text-emerald-400">
                       ${strategy.total_value_usd?.toLocaleString() || '0'}
@@ -215,7 +293,7 @@ export const getPortfolioExpandedContent = (metrics: PortfolioMetrics, portfolio
                 </div>
               )}
               
-              {Object.keys(chainData.tokens || {}).length === 0 && Object.keys(chainData.strategies || {}).length === 0 && (
+              {Object.keys(chainData.tokens || {}).length === 0 && Object.keys(chainData.assets || {}).length === 0 && Object.keys(chainData.strategies || {}).length === 0 && (
                 <div className="text-sm text-slate-400">No assets on this chain.</div>
               )}
             </div>
@@ -496,22 +574,60 @@ const Portfolio: React.FC<PortfolioProps> = ({
               </div>
 
               {/* Token List */}
-              <div className="space-y-3">
-                {Object.entries(chainData.tokens).map(([symbol, tokenData]) => (
-                  <div key={symbol} className="flex items-center justify-between rounded-lg bg-gray-700/20 p-3">
-                    <div className="flex items-center space-x-3">
-                      <TokenIcon symbol={symbol} className="h-6 w-6" />
-                      <div>
-                        <div className="font-medium text-white">{symbol}</div>
-                        <div className="text-sm text-gray-400">{tokenData.balance}</div>
+              {Object.keys(chainData.tokens).length > 0 && (
+                <div className="mb-4">
+                  <h4 className="mb-3 text-sm font-medium text-gray-400">Vault Tokens</h4>
+                  <div className="space-y-3">
+                    {Object.entries(chainData.tokens).map(([symbol, tokenData]) => (
+                      <div key={symbol} className="flex items-center justify-between rounded-lg bg-gray-700/20 p-3">
+                        <div className="flex items-center space-x-3">
+                          <TokenIcon symbol={symbol} className="h-6 w-6" />
+                          <div>
+                            <div className="font-medium text-white">{symbol}</div>
+                            <div className="text-sm text-gray-400">{tokenData.balance}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium text-white">{formatCurrency(tokenData.value_usd)}</div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium text-white">{formatCurrency(tokenData.value_usd)}</div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {/* Asset Tokens List */}
+              {chainData.assets && Object.entries(chainData.assets).length > 0 && (
+                <div className="mb-4">
+                  <h4 className="mb-3 text-sm font-medium text-gray-400">Asset Tokens (Yield Bearing)</h4>
+                  <div className="space-y-3">
+                    {Object.entries(chainData.assets).map(([assetKey, assetData]) => (
+                      <div key={assetKey} className="rounded-lg border border-green-500/20 bg-green-500/10 p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="font-medium text-green-400">
+                            {formatAssetType(assetData.asset_type || '', chainName)}
+                          </div>
+                          <div className="font-medium text-white">{formatCurrency(assetData.total_value_usd)}</div>
+                        </div>
+                        <div className="space-y-2">
+                          {Object.entries(assetData.tokens || {}).map(([symbol, tokenData]) => (
+                            <div key={symbol} className="flex items-center justify-between pl-4">
+                              <div className="flex items-center space-x-2">
+                                <TokenIcon symbol={symbol} className="h-5 w-5" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-300">{symbol}</div>
+                                  <div className="text-xs text-gray-400">{tokenData.balance}</div>
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-300">{formatCurrency(tokenData.value_usd)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Strategy List */}
               {chainData.strategies && Object.entries(chainData.strategies).length > 0 && (
@@ -522,7 +638,7 @@ const Portfolio: React.FC<PortfolioProps> = ({
                       <div key={strategyId} className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="font-medium text-blue-400">{strategyData.protocol}</div>
+                            <div className="font-medium text-blue-400">{getProtocolDisplayName(strategyData.protocol)}</div>
                             <div className="text-sm text-gray-400">
                               {Object.entries(strategyData.tokens || {}).map(([symbol, tokenData]) => {
                                 const balance = typeof tokenData === 'object' && tokenData?.balance 

@@ -1,3 +1,4 @@
+- refresh portfolio as param and add prompt if a tx happened
 - automation: refresh based on yield
 - fix refresh button
 - notifications

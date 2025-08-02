@@ -489,6 +489,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
                                 em: ({children}) => <em className="text-emerald-400">{children}</em>,
                                 code: ({children}) => <code className="bg-slate-800 px-1 py-0.5 rounded text-sm">{children}</code>,
                                 pre: ({children}) => <pre className="bg-slate-800 p-2 rounded-lg overflow-x-auto my-2">{children}</pre>,
+                                a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">{children}</a>,
                               }}
                             >
                               {message.text}
@@ -674,6 +675,7 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
                                 em: ({children}) => <em className="text-emerald-400">{children}</em>,
                                 code: ({children}) => <code className="bg-slate-800 px-1 py-0.5 rounded text-sm">{children}</code>,
                                 pre: ({children}) => <pre className="bg-slate-800 p-2 rounded-lg overflow-x-auto my-2">{children}</pre>,
+                                a: ({href, children}) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline hover:text-blue-300">{children}</a>,
                               }}
                             >
                               {message.text}

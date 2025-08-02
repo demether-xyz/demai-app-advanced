@@ -1,11 +1,12 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 // Chat types
 export interface ChatMessage {
   id: number
   sender: 'user' | 'ai' | 'system'
   text: string
-  timestamp: Date
+  timestamp: Date | string // Allow both for compatibility
 }
 
 // Token balance and approval types
@@ -163,8 +164,10 @@ interface EventState {
   clearPortfolioCache: (walletAddress?: string) => void
 }
 
-// Create the app store with event system
-export const useAppStore = create<EventState>((set, get) => ({
+// Create the app store with event system and persistence
+export const useAppStore = create<EventState>()(
+  persist(
+    (set, get) => ({
   events: {},
   
   // Chat system initial state
@@ -614,4 +617,28 @@ export const useAppStore = create<EventState>((set, get) => ({
       },
     }))
   },
-}))
+}),
+    {
+      name: 'demai-chat-storage', // unique name for localStorage key
+      partialize: (state) => ({ 
+        // Only persist chat messages, not loading state
+        chat: {
+          messages: state.chat.messages.slice(-50).map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp instanceof Date ? msg.timestamp.toISOString() : msg.timestamp
+          })), // Keep last 50 messages with serialized dates
+          isLoading: false,
+        }
+      }),
+      onRehydrateStorage: () => (state) => {
+        // Convert timestamp strings back to Date objects when loading from storage
+        if (state && state.chat && state.chat.messages) {
+          state.chat.messages = state.chat.messages.map(msg => ({
+            ...msg,
+            timestamp: typeof msg.timestamp === 'string' ? new Date(msg.timestamp) : msg.timestamp
+          }))
+        }
+      },
+    }
+  )
+)

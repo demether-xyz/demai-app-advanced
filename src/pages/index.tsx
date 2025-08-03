@@ -34,7 +34,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt, useSignMessage } from 'wagmi'
 import { ethers } from 'ethers'
 import { XMarkIcon, ChevronDownIcon, ArrowTopRightOnSquareIcon, InformationCircleIcon, TrashIcon } from '@heroicons/react/24/outline'
 import DemaiAuthHandler from '@/components/DemaiAuthHandler'
@@ -71,7 +71,7 @@ const VAULT_ABI = [
   },
 ] as const
 
-type ViewType = 'portfolio' | 'vault' | 'strategy' | 'chat'
+type ViewType = 'portfolio' | 'vault' | 'strategy' | 'chat' | 'telegram'
 
 const DemaiPage = () => {
   const { isConnected, address } = useAccount()
@@ -825,6 +825,194 @@ const DemaiPage = () => {
     return <StrategyManager onClose={() => setCurrentView('portfolio')} />
   }
 
+  // Telegram Binding Component
+  const TelegramBindingComponent = () => {
+    const [step, setStep] = useState(1)
+    const [signature, setSignature] = useState('')
+    const [isCopied, setIsCopied] = useState(false)
+    const { signMessageAsync, isPending: isSigningMessage } = useSignMessage()
+    
+    // Get vault address for the current chain
+    const currentChainId = useChainId()
+    const { vaultAddress } = useVaultAddress(address, currentChainId)
+    
+    const telegramBotUrl = 'https://t.me/demetherbot'
+    const bindingMessage = `Bind wallet ${address} with vault ${vaultAddress} to Telegram`
+
+    const handleSignMessage = async () => {
+      if (!address) {
+        alert('Please connect your wallet first.')
+        return
+      }
+
+      if (!vaultAddress) {
+        alert('Please deploy a vault first.')
+        return
+      }
+
+      try {
+        const sig = await signMessageAsync({ message: bindingMessage })
+        if (sig) {
+          setSignature(sig)
+          setStep(2)
+        }
+      } catch (error) {
+        console.error('Error signing message:', error)
+        alert('Failed to sign message. Please try again.')
+      }
+    }
+
+    const handleCopySignature = () => {
+      navigator.clipboard.writeText(signature)
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 2000)
+    }
+
+    const handleCopyCommand = () => {
+      const command = `/verify ${address} ${vaultAddress} ${signature}`
+      navigator.clipboard.writeText(command)
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 2000)
+    }
+
+    return (
+      <div className="rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-6 h-full overflow-y-auto">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-white">Telegram Binding</h2>
+          <button
+            onClick={() => setCurrentView('portfolio')}
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-700/50 hover:text-gray-200"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="max-w-2xl mx-auto">
+          {/* Progress Indicator */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <div className={`flex items-center ${step >= 1 ? 'text-blue-400' : 'text-gray-500'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                  step >= 1 ? 'border-blue-400 bg-blue-400/20' : 'border-gray-500'
+                }`}>
+                  1
+                </div>
+                <span className="ml-2 text-sm font-medium">Sign Message</span>
+              </div>
+              <div className={`flex-1 h-0.5 mx-4 ${step >= 2 ? 'bg-blue-400' : 'bg-gray-600'}`} />
+              <div className={`flex items-center ${step >= 2 ? 'text-blue-400' : 'text-gray-500'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                  step >= 2 ? 'border-blue-400 bg-blue-400/20' : 'border-gray-500'
+                }`}>
+                  2
+                </div>
+                <span className="ml-2 text-sm font-medium">Send to Bot</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Step Content */}
+          {step === 1 ? (
+            <div className="space-y-6">
+              <div className="bg-gray-800/60 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Step 1: Sign Binding Message</h3>
+                <p className="text-gray-300 mb-6">
+                  Sign a message with your wallet to prove ownership. This signature will be used to bind your Telegram account to your wallet address.
+                </p>
+                
+                <div className="bg-gray-900/60 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-gray-400 mb-2">Message to sign:</p>
+                  <p className="font-mono text-sm text-white break-all">{bindingMessage}</p>
+                </div>
+
+                <button
+                  onClick={handleSignMessage}
+                  disabled={isSigningMessage}
+                  className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-800"
+                >
+                  {isSigningMessage ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span>Signing...</span>
+                    </div>
+                  ) : (
+                    'Sign Message'
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="bg-gray-800/60 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Step 2: Send Verification to Telegram Bot</h3>
+                <p className="text-gray-300 mb-6">
+                  Copy the verification command below and send it to our Telegram bot to complete the binding process.
+                </p>
+
+                <div className="space-y-4">
+                  {/* Complete Command Display */}
+                  <div>
+                    <p className="text-sm text-gray-400 mb-2">Complete verification command:</p>
+                    <div className="bg-gray-900/60 rounded-lg p-4 relative">
+                      <p className="font-mono text-xs text-white break-all pr-20">
+                        /verify {address} {vaultAddress} {signature}
+                      </p>
+                      <button
+                        onClick={handleCopyCommand}
+                        className="absolute top-3 right-3 px-3 py-1 text-xs font-medium text-blue-400 hover:text-blue-300 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
+                      >
+                        {isCopied ? 'Copied!' : 'Copy Command'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-blue-300 mb-2">Instructions:</h4>
+                    <ol className="list-decimal list-inside space-y-2 text-sm text-blue-200">
+                      <li>Click "Copy Command" above to copy the complete verification command</li>
+                      <li>Open Telegram and search for @demetherbot</li>
+                      <li>Start a conversation with the bot</li>
+                      <li>Paste and send the command to the bot</li>
+                      <li>The bot will confirm your wallet binding</li>
+                    </ol>
+                  </div>
+
+                  {/* Bot Link */}
+                  <div className="flex justify-center pt-4">
+                    <a
+                      href={telegramBotUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-2 px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white font-medium rounded-lg transition-colors"
+                    >
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.56c-.21 2.27-1.13 7.75-1.6 10.29-.2 1.08-.58 1.44-.96 1.47-.81.07-1.43-.54-2.22-1.06-1.23-.82-1.93-1.33-3.12-2.13-1.38-.93-.49-1.44.3-2.27.21-.22 3.82-3.5 3.89-3.8.01-.04.01-.19-.07-.27-.09-.08-.22-.05-.32-.03-.13.03-2.24 1.42-6.32 4.18-.6.42-1.14.62-1.63.61-.54-.01-1.57-.3-2.34-.55-.94-.31-1.69-.47-1.63-.99.03-.28.41-.57 1.13-.86 4.43-1.93 7.39-3.2 8.88-3.82 4.23-1.75 5.11-2.06 5.68-2.07.13 0 .4.03.58.17.15.12.19.28.21.44-.01.14.01.31 0 .47z"/>
+                      </svg>
+                      <span>Open @demetherbot</span>
+                      <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Back Button */}
+              <button
+                onClick={() => {
+                  setStep(1)
+                  setSignature('')
+                }}
+                className="w-full rounded-lg border border-gray-600 px-4 py-3 font-medium text-gray-300 transition-colors hover:bg-gray-800"
+              >
+                Back to Step 1
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   // Old strategy component - keeping for reference but not used
   const OldStrategyComponent = () => {
     // Load strategies and user tasks from hooks
@@ -1345,6 +1533,18 @@ const DemaiPage = () => {
                       </svg>
                       <span className="text-sm font-medium text-white">Chat Assistant</span>
                     </div>
+
+                    <div 
+                      onClick={() => setCurrentView('telegram')}
+                      className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
+                        currentView === 'telegram' ? 'bg-sky-700' : 'bg-sky-600 hover:bg-sky-700'
+                      }`}
+                    >
+                      <svg className="mr-2 h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.56c-.21 2.27-1.13 7.75-1.6 10.29-.2 1.08-.58 1.44-.96 1.47-.81.07-1.43-.54-2.22-1.06-1.23-.82-1.93-1.33-3.12-2.13-1.38-.93-.49-1.44.3-2.27.21-.22 3.82-3.5 3.89-3.8.01-.04.01-.19-.07-.27-.09-.08-.22-.05-.32-.03-.13.03-2.24 1.42-6.32 4.18-.6.42-1.14.62-1.63.61-.54-.01-1.57-.3-2.34-.55-.94-.31-1.69-.47-1.63-.99.03-.28.41-.57 1.13-.86 4.43-1.93 7.39-3.2 8.88-3.82 4.23-1.75 5.11-2.06 5.68-2.07.13 0 .4.03.58.17.15.12.19.28.21.44-.01.14.01.31 0 .47z"/>
+                      </svg>
+                      <span className="text-sm font-medium text-white">Telegram</span>
+                    </div>
                   </div>
                 </div>
 
@@ -1363,6 +1563,7 @@ const DemaiPage = () => {
                   {currentView === 'vault' && <VaultComponent />}
                   {currentView === 'strategy' && <StrategyComponent />}
                   {currentView === 'chat' && <DemaiChatInterface mode="embedded" />}
+                  {currentView === 'telegram' && <TelegramBindingComponent />}
                 </div>
               </div>
             </div>

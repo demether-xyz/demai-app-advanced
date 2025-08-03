@@ -30,7 +30,10 @@ interface StrategySubscription {
   created_at: string
   updated_at: string
   last_executed: string | null
+  next_run_time: string | null
   execution_count: number
+  last_execution_memo: string | null
+  last_execution_status: string | null
   strategy: Strategy | null
 }
 

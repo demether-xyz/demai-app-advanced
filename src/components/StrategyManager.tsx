@@ -29,6 +29,67 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
     undefined
   const { vaultAddress } = useVaultAddress(address, selectedChainId)
 
+  // Helper function to format dates
+  const formatDate = (dateString: string | any) => {
+    // Handle MongoDB date objects
+    let dateStr = typeof dateString === 'object' && dateString.$date ? dateString.$date : dateString
+    
+    // If the date string doesn't end with 'Z', add it to treat as UTC
+    if (typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      dateStr = dateStr.replace('000', '') + 'Z'  // Remove microseconds and add Z
+    }
+    
+    const date = new Date(dateStr)
+    const now = new Date()
+    
+    const diffMs = now.getTime() - date.getTime()
+    const diffMinutes = Math.round(diffMs / (1000 * 60))
+    const diffHours = Math.round(diffMinutes / 60)
+    const diffDays = Math.round(diffHours / 24)
+    
+    if (diffMinutes < 1) {
+      return 'just now'
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes} min ago`
+    } else if (diffHours < 24) {
+      return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+    } else if (diffDays < 7) {
+      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+    } else {
+      return date.toLocaleDateString()
+    }
+  }
+
+  // Helper function to format future dates
+  const formatFutureDate = (dateString: string | any) => {
+    // Handle MongoDB date objects
+    let dateStr = typeof dateString === 'object' && dateString.$date ? dateString.$date : dateString
+    
+    // If the date string doesn't end with 'Z', add it to treat as UTC
+    if (typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      dateStr = dateStr.replace('000', '') + 'Z'  // Remove microseconds and add Z
+    }
+    
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = date.getTime() - now.getTime()
+    const diffMinutes = Math.round(diffMs / (1000 * 60))
+    const diffHours = Math.round(diffMinutes / 60)
+    const diffDays = Math.round(diffHours / 24)
+    
+    if (diffMinutes < 1) {
+      return 'any moment'
+    } else if (diffMinutes < 60) {
+      return `in ${diffMinutes} min`
+    } else if (diffHours < 24) {
+      return `in ${diffHours} hour${diffHours > 1 ? 's' : ''}`
+    } else if (diffDays < 7) {
+      return `in ${diffDays} day${diffDays > 1 ? 's' : ''}`
+    } else {
+      return date.toLocaleDateString()
+    }
+  }
+
   // Set initial selected strategy when strategies load
   useEffect(() => {
     if (strategies.length > 0 && !selectedStrategy) {
@@ -52,35 +113,35 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
     e.preventDefault()
 
     if (!address) {
-      alert('Please connect your wallet first.')
+      console.error('Cannot submit: wallet not connected')
       return
     }
 
     if (!hasVault && !isVaultLoading) {
-      alert('Please deploy a vault first.')
+      console.error('Cannot submit: vault not deployed')
       return
     }
 
     if (!selectedStrategy || !percentage) {
-      alert('Please select a strategy and enter a percentage.')
+      console.error('Cannot submit: strategy or percentage not selected')
       return
     }
 
 
     const percentageNum = parseInt(percentage)
     if (percentageNum < 1 || percentageNum > 100) {
-      alert('Percentage must be between 1 and 100.')
+      console.error('Cannot submit: percentage must be between 1 and 100')
       return
     }
 
     const remaining = getRemainingAllocation(selectedStrategy.chain)
     if (percentageNum > remaining) {
-      alert(`Cannot allocate ${percentageNum}%. Only ${remaining}% remaining for ${selectedStrategy.chain} chain.`)
+      console.error(`Cannot submit: allocation would exceed 100% for ${selectedStrategy.chain} chain`)
       return
     }
 
     if (!vaultAddress) {
-      console.error('Vault address not found for chain:', selectedStrategy.chain)
+      console.error('Cannot submit: vault address not found for chain')
       return
     }
 
@@ -99,7 +160,7 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
   const handleUpdate = async (taskId: string) => {
     const percentageNum = parseInt(editPercentage)
     if (percentageNum < 1 || percentageNum > 100) {
-      alert('Percentage must be between 1 and 100.')
+      console.error('Cannot update: percentage must be between 1 and 100')
       return
     }
 
@@ -110,7 +171,7 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
     const newAllocation = currentAllocation - subscription.percentage + percentageNum
     
     if (newAllocation > 100) {
-      alert(`Cannot set to ${percentageNum}%. Total allocation for ${subscription.chain} would exceed 100%.`)
+      console.error(`Cannot update: total allocation for ${subscription.chain} would exceed 100%`)
       return
     }
 
@@ -210,17 +271,60 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
           <div className="space-y-3">
             {subscriptions.map((sub) => (
               <div key={sub._id} className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-2">
-                      {sub.strategy?.tokens.map(token => (
-                        <TokenIcon key={token} symbol={token} className="w-5 h-5" />
-                      ))}
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className="flex items-center space-x-2">
+                        {sub.strategy?.tokens.map(token => (
+                          <TokenIcon key={token} symbol={token} className="w-5 h-5" />
+                        ))}
+                      </div>
+                      <div>
+                        <div className="font-medium text-white">{sub.strategy?.name || sub.strategy_id}</div>
+                        <div className="text-sm text-gray-400">{sub.chain} • {sub.strategy?.frequency}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium text-white">{sub.strategy?.name || sub.strategy_id}</div>
-                      <div className="text-sm text-gray-400">{sub.chain} • {sub.strategy?.frequency}</div>
+                    
+                    {/* Execution Status */}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-500">Executions:</span>
+                        <span className="text-gray-300">{sub.execution_count || 0}</span>
+                      </div>
+                      
+                      {sub.last_executed && (
+                        <div className="flex items-center space-x-1">
+                          <span className="text-gray-500">Last run:</span>
+                          <span className="text-gray-300">
+                            {formatDate(sub.last_executed)}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {sub.next_run_time && (
+                        <div className="flex items-center space-x-1">
+                          <span className="text-gray-500">Next run:</span>
+                          <span className="text-gray-300">
+                            {formatFutureDate(sub.next_run_time)}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {sub.last_execution_status && (
+                        <div className="flex items-center space-x-1">
+                          <span className="text-gray-500">Status:</span>
+                          <span className={sub.last_execution_status === 'success' ? 'text-green-400' : 'text-red-400'}>
+                            {sub.last_execution_status}
+                          </span>
+                        </div>
+                      )}
                     </div>
+                    
+                    {sub.last_execution_memo && (
+                      <div className="mt-2 text-xs text-gray-400 italic bg-gray-700/30 rounded px-2 py-1">
+                        "{sub.last_execution_memo}"
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex items-center space-x-2">

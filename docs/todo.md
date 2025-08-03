@@ -1,4 +1,4 @@
-- strategies:
-    -
-- automation: refresh based on yield
 - notifications
+    - telegram integration
+    - telegram chat
+    - task notification

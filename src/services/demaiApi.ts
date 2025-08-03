@@ -21,7 +21,12 @@ export const storeAuthData = (authData: { signature: string; message: string; ad
 }
 
 // Function to send a message to the AI chat endpoint
-export const sendMessageToDemai = async (message: string, walletAddress?: string, vaultAddress?: string): Promise<ApiResponse<{ text: string; windows?: string[] }>> => {
+export const sendMessageToDemai = async (
+  message: string, 
+  walletAddress?: string, 
+  vaultAddress?: string,
+  returnIntermediateSteps: boolean = true
+): Promise<ApiResponse<{ text: string; messages?: Array<{type: string; content: string; tool?: string; step?: number}> }>> => {
   try {
     // Get authentication data from localStorage
     const authData = getStoredAuthData()
@@ -38,6 +43,7 @@ export const sendMessageToDemai = async (message: string, walletAddress?: string
       wallet_address: authData.address,
       vault_address: vaultAddress,
       signature: authData.signature,
+      return_intermediate_steps: returnIntermediateSteps,
     });
 
     const response = await fetch(`${API_BASE_URL}/chat/`, {
@@ -52,7 +58,20 @@ export const sendMessageToDemai = async (message: string, walletAddress?: string
     }
 
     const data = await response.json();
-    return { success: true, data: data.response };
+    
+    // Handle both response formats
+    if (returnIntermediateSteps && data.response && typeof data.response === 'object' && 'messages' in data.response) {
+      return { success: true, data: data.response };
+    } else {
+      // Backward compatibility - wrap single response in messages array
+      return { 
+        success: true, 
+        data: { 
+          text: data.response,
+          messages: [{ type: 'final', content: data.response }]
+        } 
+      };
+    }
   } catch (error) {
     console.error('Failed to send message to Demai API:', error);
     if (error instanceof Error) {

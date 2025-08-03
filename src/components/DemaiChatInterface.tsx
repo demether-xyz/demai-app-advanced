@@ -252,23 +252,69 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
       // Try to get response from API first
       const response = await sendMessageToDemai(messageText, address, vaultAddress)
       
-      let aiResponseText: string
-      
       if (response.success && response.data) {
-        // response.data is the text string from the API
-        aiResponseText = response.data
+        // Check if we have messages array (intermediate steps)
+        if (response.data.messages && Array.isArray(response.data.messages)) {
+          // Add intermediate messages with slight delays for better UX
+          for (let i = 0; i < response.data.messages.length; i++) {
+            const msg = response.data.messages[i]
+            
+            // Format message based on type
+            let messageText = msg.content
+            if (msg.type === 'tool_invocation') {
+              // Extract tool name and create a cleaner message
+              if (msg.tool === 'view_portfolio') {
+                messageText = `🔧 Checking your portfolio...`
+              } else if (msg.tool === 'akka_swap') {
+                messageText = `🔧 Executing token swap...`
+              } else if (msg.tool === 'aave_lending') {
+                messageText = `🔧 Processing lending transaction...`
+              } else if (msg.tool === 'research') {
+                messageText = `🔧 Researching...`
+              } else {
+                messageText = `🔧 Processing ${msg.tool}...`
+              }
+            } else if (msg.type === 'tool_response' && msg.tool) {
+              // Skip tool responses or show them minimally
+              continue
+            }
+            
+            // Only show final message and tool invocations
+            if (msg.type === 'final' || msg.type === 'tool_invocation') {
+              const aiMessage: ChatMessage = {
+                id: Date.now() + i + 1,
+                sender: 'ai',
+                text: messageText,
+                timestamp: new Date(),
+              }
+              
+              // Add message with a small delay between messages
+              if (i > 0 && msg.type === 'tool_invocation') {
+                await new Promise(resolve => setTimeout(resolve, 500))
+              }
+              
+              addChatMessage(aiMessage)
+            }
+          }
+        } else {
+          // Fallback to simple text response
+          const aiMessage: ChatMessage = {
+            id: Date.now() + 1,
+            sender: 'ai',
+            text: response.data.text || (typeof response.data === 'string' ? response.data : ''),
+            timestamp: new Date(),
+          }
+          addChatMessage(aiMessage)
+        }
       } else {
-        aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'
+        const errorMessage: ChatMessage = {
+          id: Date.now() + 1,
+          sender: 'ai',
+          text: 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.',
+          timestamp: new Date(),
+        }
+        addChatMessage(errorMessage)
       }
-
-      const aiMessage: ChatMessage = {
-        id: Date.now() + 1,
-        sender: 'ai',
-        text: aiResponseText,
-        timestamp: new Date(),
-      }
-
-      addChatMessage(aiMessage)
     } catch (error) {
       const errorMessage: ChatMessage = {
         id: Date.now() + 1,
@@ -319,23 +365,69 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
       try {
         const response = await sendMessageToDemai(messageText, address, vaultAddress)
         
-        let aiResponseText: string
-        
         if (response.success && response.data) {
-          // response.data is the text string from the API
-          aiResponseText = response.data
+          // Check if we have messages array (intermediate steps)
+          if (response.data.messages && Array.isArray(response.data.messages)) {
+            // Add intermediate messages with slight delays for better UX
+            for (let i = 0; i < response.data.messages.length; i++) {
+              const msg = response.data.messages[i]
+              
+              // Format message based on type
+              let messageText = msg.content
+              if (msg.type === 'tool_invocation') {
+                // Extract tool name and create a cleaner message
+                if (msg.tool === 'view_portfolio') {
+                  messageText = `🔧 Checking your portfolio...`
+                } else if (msg.tool === 'akka_swap') {
+                  messageText = `🔧 Executing token swap...`
+                } else if (msg.tool === 'aave_lending') {
+                  messageText = `🔧 Processing lending transaction...`
+                } else if (msg.tool === 'research') {
+                  messageText = `🔧 Researching...`
+                } else {
+                  messageText = `🔧 Processing ${msg.tool}...`
+                }
+              } else if (msg.type === 'tool_response' && msg.tool) {
+                // Skip tool responses or show them minimally
+                continue
+              }
+              
+              // Only show final message and tool invocations
+              if (msg.type === 'final' || msg.type === 'tool_invocation') {
+                const aiMessage: ChatMessage = {
+                  id: Date.now() + i + 1,
+                  sender: 'ai',
+                  text: messageText,
+                  timestamp: new Date(),
+                }
+                
+                // Add message with a small delay between messages
+                if (i > 0 && msg.type === 'tool_invocation') {
+                  await new Promise(resolve => setTimeout(resolve, 500))
+                }
+                
+                addChatMessage(aiMessage)
+              }
+            }
+          } else {
+            // Fallback to simple text response
+            const aiMessage: ChatMessage = {
+              id: Date.now() + 1,
+              sender: 'ai',
+              text: response.data.text || (typeof response.data === 'string' ? response.data : ''),
+              timestamp: new Date(),
+            }
+            addChatMessage(aiMessage)
+          }
         } else {
-          aiResponseText = 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.'
+          const errorMessage: ChatMessage = {
+            id: Date.now() + 1,
+            sender: 'ai',
+            text: 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.',
+            timestamp: new Date(),
+          }
+          addChatMessage(errorMessage)
         }
-
-        const aiMessage: ChatMessage = {
-          id: Date.now() + 1,
-          sender: 'ai',
-          text: aiResponseText,
-          timestamp: new Date(),
-        }
-
-        addChatMessage(aiMessage)
       } catch (error) {
         const errorMessage: ChatMessage = {
           id: Date.now() + 1,

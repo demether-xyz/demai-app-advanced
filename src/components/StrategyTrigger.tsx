@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { XMarkIcon, ChevronDownIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
-import { useAccount, useChainId } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { useVaultVerification } from '../hooks/useVaultVerification'
 import { useVaultTokenBalances } from '../hooks/useVaultTokenBalances'
 import { useVaultAddress } from '../hooks/useVaultAddress'
@@ -79,15 +79,6 @@ const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) =>
     }
 
     // TODO: Implement actual strategy execution logic
-    console.log('Executing strategy:', {
-      strategy: selectedStrategy.id,
-      strategyName: selectedStrategy.name,
-      amount: parseFloat(amount),
-      primaryToken: selectedStrategy.primaryToken,
-      chain: selectedStrategy.chain?.name || 'Unknown',
-      vaultAddress,
-      chainId: selectedStrategy.chain?.id || 0
-    })
     
     // Emit portfolio update event
     emit('app.portfolio.refresh')
@@ -104,14 +95,6 @@ const StrategyTrigger: React.FC<StrategyTriggerProps> = ({ isOpen, onClose }) =>
     }
   }
 
-  const getRiskColor = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'low': return 'text-green-400'
-      case 'medium': return 'text-yellow-400'
-      case 'high': return 'text-red-400'
-      default: return 'text-gray-400'
-    }
-  }
 
   const getRiskBadgeColor = (riskLevel: string) => {
     switch (riskLevel) {

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { useAppStore, PortfolioData } from '@/store'
-import { useEvent, useEventEmitter } from '@/hooks/useEvents'
+import { useEvent } from '@/hooks/useEvents'
 import { getPortfolioData as fetchPortfolioData } from '@/services/demaiApi'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -38,16 +38,9 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
 
   // Fetch portfolio data using wallet address
   const fetchPortfolio = async (walletAddress: string, force: boolean = false, retryCount: number = 0) => {
-    console.log('🔄 [Portfolio] Fetching portfolio data...', {
-      walletAddress,
-      force,
-      retryCount,
-      timestamp: new Date().toISOString()
-    })
 
     // Don't fetch if not authenticated
     if (!hasValidSignature) {
-      console.log('❌ [Portfolio] Not authenticated, skipping fetch')
       setPortfolioData(walletAddress, {
         ...defaultPortfolio,
         error: 'Please authenticate to view your portfolio.',
@@ -58,19 +51,12 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
 
     // Set loading state immediately (only on first attempt)
     if (retryCount === 0) {
-      console.log('⏳ [Portfolio] Setting loading state to true')
       setPortfolioLoading(walletAddress, true)
     }
 
     try {
       const result = await fetchPortfolioData(walletAddress, force)
       
-      console.log('✅ [Portfolio] Received API response:', {
-        success: result.success,
-        hasData: !!result.data,
-        totalValue: result.data?.total_value_usd,
-        timestamp: new Date().toISOString()
-      })
       
       if (result.success && result.data) {
         // Map the API response to our expected structure
@@ -90,10 +76,6 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
 
         // Check if we should retry (only when force refreshing and value is still 0)
         if (force && portfolioData.total_value_usd === 0 && retryCount < 3) {
-          console.log('🔁 [Portfolio] Portfolio shows zero value after refresh, retrying...', {
-            retryCount: retryCount + 1,
-            timestamp: new Date().toISOString()
-          })
           
           // Wait a bit longer before retrying
           setTimeout(() => {
@@ -103,18 +85,9 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
           return // Don't update the store yet
         }
 
-        console.log('💾 [Portfolio] Updating store with new data', {
-          totalValue: portfolioData.total_value_usd,
-          isLoading: false,
-          timestamp: new Date().toISOString()
-        })
         
         setPortfolioData(walletAddress, portfolioData)
       } else {
-        console.log('⚠️ [Portfolio] API request failed:', {
-          error: result.error,
-          timestamp: new Date().toISOString()
-        })
         setPortfolioData(walletAddress, {
           ...defaultPortfolio,
           error: result.error || 'Failed to fetch portfolio data',
@@ -122,10 +95,6 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
         })
       }
     } catch (error) {
-      console.error('❌ [Portfolio] Error fetching data:', {
-        error,
-        timestamp: new Date().toISOString()
-      })
       setPortfolioData(walletAddress, {
         ...defaultPortfolio,
         error: 'Failed to fetch portfolio data',
@@ -133,7 +102,6 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
       })
     } finally {
       // Ensure loading state is cleared in all cases
-      console.log('⏳ [Portfolio] Setting loading state to false')
       setPortfolioLoading(walletAddress, false)
     }
   }
@@ -141,10 +109,6 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
   // Refresh portfolio data
   const refreshPortfolio = () => {
     if (address) {
-      console.log('🔄 [Portfolio] Manual refresh triggered', {
-        address,
-        timestamp: new Date().toISOString()
-      })
       fetchPortfolio(address, true)
     }
   }
@@ -154,10 +118,6 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
     if (shouldFetch && address && hasValidSignature) {
       // Check if we should query based on cache and last query time
       if (shouldQueryPortfolio(address)) {
-        console.log('🔄 [Portfolio] Initial/cache-expired fetch triggered', {
-          address,
-          timestamp: new Date().toISOString()
-        })
         fetchPortfolio(address)
       }
     }
@@ -166,11 +126,6 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
   // Handle refresh events
   useEffect(() => {
     if (refreshEvent > 0 && address) {
-      console.log('🔄 [Portfolio] Event-triggered refresh', {
-        refreshEvent,
-        address,
-        timestamp: new Date().toISOString()
-      })
       fetchPortfolio(address, true)
     }
   }, [refreshEvent, address])
@@ -178,7 +133,6 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
   // Clear cache when wallet changes
   useEffect(() => {
     if (!address) {
-      console.log('🧹 [Portfolio] Clearing cache - no wallet connected')
       clearPortfolioCache()
     }
   }, [address])

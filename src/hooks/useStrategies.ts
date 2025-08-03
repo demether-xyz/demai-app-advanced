@@ -39,7 +39,6 @@ export const useStrategies = (): UseStrategiesResult => {
       setIsLoading(true)
       setError(null)
       
-      console.log('🔍 [useStrategies] Fetching strategies from API...')
       const response = await getStrategies()
       
       if (!response.success) {

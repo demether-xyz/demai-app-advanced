@@ -18,7 +18,6 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
   const isLoading = useAppStore((state) => state.chat.isLoading)
   const addChatMessage = useAppStore((state) => state.addChatMessage)
   const setChatLoading = useAppStore((state) => state.setChatLoading)
-  const clearChatMessages = useAppStore((state) => state.clearChatMessages)
   
   // Local state for UI-specific things
   const [inputValue, setInputValue] = useState('')
@@ -62,7 +61,6 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
       }
       return false
     } catch (error) {
-      console.debug('Focus attempt failed:', error)
       return false
     }
   }, [isExpanded, isLoading, shouldMaintainFocus, isUserSelecting])
@@ -215,10 +213,6 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
     scrollToBottom()
   }, [messages])
 
-  const handleSuggestionClick = (suggestion: ChatMessage) => {
-    setInputValue(suggestion.text)
-    setTimeout(maintainInputFocus, 0)
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -333,120 +327,6 @@ const DemaiChatInterface: React.FC<DemaiChatInterfaceProps> = ({ className = '',
         })
       }
     }
-  }
-
-  // Handle message input from chatscope component
-  const handleChatScopeSubmit = (innerText: string, textContent: string) => {
-    if (!textContent.trim() || isLoading) return
-
-    isSubmittingRef.current = true
-    
-    const userMessage: ChatMessage = {
-      id: Date.now(),
-      sender: 'user',
-      text: textContent.trim(),
-      timestamp: new Date(),
-    }
-
-    addChatMessage(userMessage)
-    const messageText = textContent.trim()
-    setChatLoading(true)
-
-    // Immediately restore focus after message is sent
-    isSubmittingRef.current = false
-    setShouldMaintainFocus(true)
-    
-    requestAnimationFrame(() => {
-      maintainInputFocus()
-    })
-
-    // Process the message same as before
-    setTimeout(async () => {
-      try {
-        const response = await sendMessageToDemai(messageText, address, vaultAddress)
-        
-        if (response.success && response.data) {
-          // Check if we have messages array (intermediate steps)
-          if (response.data.messages && Array.isArray(response.data.messages)) {
-            // Add intermediate messages with slight delays for better UX
-            for (let i = 0; i < response.data.messages.length; i++) {
-              const msg = response.data.messages[i]
-              
-              // Format message based on type
-              let messageText = msg.content
-              if (msg.type === 'tool_invocation') {
-                // Extract tool name and create a cleaner message
-                if (msg.tool === 'view_portfolio') {
-                  messageText = `🔧 Checking your portfolio...`
-                } else if (msg.tool === 'akka_swap') {
-                  messageText = `🔧 Executing token swap...`
-                } else if (msg.tool === 'aave_lending') {
-                  messageText = `🔧 Processing lending transaction...`
-                } else if (msg.tool === 'research') {
-                  messageText = `🔧 Researching...`
-                } else {
-                  messageText = `🔧 Processing ${msg.tool}...`
-                }
-              } else if (msg.type === 'tool_response' && msg.tool) {
-                // Skip tool responses or show them minimally
-                continue
-              }
-              
-              // Only show final message and tool invocations
-              if (msg.type === 'final' || msg.type === 'tool_invocation') {
-                const aiMessage: ChatMessage = {
-                  id: Date.now() + i + 1,
-                  sender: 'ai',
-                  text: messageText,
-                  timestamp: new Date(),
-                }
-                
-                // Add message with a small delay between messages
-                if (i > 0 && msg.type === 'tool_invocation') {
-                  await new Promise(resolve => setTimeout(resolve, 500))
-                }
-                
-                addChatMessage(aiMessage)
-              }
-            }
-          } else {
-            // Fallback to simple text response
-            const aiMessage: ChatMessage = {
-              id: Date.now() + 1,
-              sender: 'ai',
-              text: response.data.text || (typeof response.data === 'string' ? response.data : ''),
-              timestamp: new Date(),
-            }
-            addChatMessage(aiMessage)
-          }
-        } else {
-          const errorMessage: ChatMessage = {
-            id: Date.now() + 1,
-            sender: 'ai',
-            text: 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.',
-            timestamp: new Date(),
-          }
-          addChatMessage(errorMessage)
-        }
-      } catch (error) {
-        const errorMessage: ChatMessage = {
-          id: Date.now() + 1,
-          sender: 'ai',
-          text: 'Sorry, I\'m having trouble connecting to the AI service right now. Please try again.',
-          timestamp: new Date(),
-        }
-        addChatMessage(errorMessage)
-      } finally {
-        setChatLoading(false)
-        // Ensure focus is still maintained after response
-        if (!shouldMaintainFocus) {
-          setShouldMaintainFocus(true)
-          requestAnimationFrame(() => {
-            maintainInputFocus()
-          })
-        }
-      }
-    }, 0)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

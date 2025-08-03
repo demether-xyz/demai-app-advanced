@@ -41,17 +41,14 @@ export const useUserTasks = () => {
 
   const fetchTasks = async () => {
     if (!address || !authData?.signature) {
-      console.log('useUserTasks: Missing address or signature', { address, hasSignature: !!authData?.signature })
       return
     }
 
-    console.log('useUserTasks: Fetching tasks for address:', address)
     setIsLoading(true)
     setError(null)
 
     try {
       const url = `${API_BASE_URL}/strategies/tasks/?wallet_address=${address}&signature=${authData.signature}`
-      console.log('useUserTasks: Fetching from URL:', url)
       
       const response = await fetch(url, {
         method: 'GET',
@@ -61,16 +58,13 @@ export const useUserTasks = () => {
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('useUserTasks: API error:', response.status, errorText)
+        await response.text()
         throw new Error(`Failed to fetch tasks: ${response.status}`)
       }
 
       const data = await response.json()
-      console.log('useUserTasks: Received data:', data)
       setTasks(data.tasks || [])
     } catch (err) {
-      console.error('useUserTasks: Error fetching tasks:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch tasks')
     } finally {
       setIsLoading(false)
@@ -174,7 +168,6 @@ export const useUserTasks = () => {
   // Refresh tasks when strategy update event is emitted
   useEffect(() => {
     if (strategyUpdateEvent > 0 && address && authData?.signature) {
-      console.log('useUserTasks: Refreshing tasks due to strategy update event')
       fetchTasks()
     }
   }, [strategyUpdateEvent, address, authData])

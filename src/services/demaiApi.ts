@@ -23,7 +23,7 @@ export const storeAuthData = (authData: { signature: string; message: string; ad
 // Function to send a message to the AI chat endpoint
 export const sendMessageToDemai = async (
   message: string, 
-  walletAddress?: string, 
+  _walletAddress?: string, 
   vaultAddress?: string,
   returnIntermediateSteps: boolean = true
 ): Promise<ApiResponse<{ text: string; messages?: Array<{type: string; content: string; tool?: string; step?: number}> }>> => {
@@ -138,6 +138,164 @@ export const getStrategies = async (): Promise<ApiResponse<{ strategies: any[] }
     return { success: true, data }
   } catch (error) {
     console.error('Failed to fetch strategies from Demai API:', error)
+    if (error instanceof Error) {
+      return { success: false, error: error.message }
+    }
+    return { success: false, error: 'An unknown error occurred' }
+  }
+}
+
+// Function to get user's strategy subscriptions
+export const getStrategySubscriptions = async (walletAddress: string): Promise<ApiResponse<{ subscriptions: any[] }>> => {
+  try {
+    const authData = getStoredAuthData()
+    if (!authData) {
+      return { success: false, error: 'User is not authenticated.' }
+    }
+
+    const response = await fetch(`${API_BASE_URL}/strategies/subscriptions?wallet_address=${walletAddress}&signature=${authData.signature}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { success: false, error: errorData.detail || 'Failed to fetch subscriptions.' }
+    }
+
+    const data = await response.json()
+    return { success: true, data }
+  } catch (error) {
+    console.error('Failed to fetch subscriptions from Demai API:', error)
+    if (error instanceof Error) {
+      return { success: false, error: error.message }
+    }
+    return { success: false, error: 'An unknown error occurred' }
+  }
+}
+
+// Function to subscribe to a strategy
+export const subscribeToStrategy = async (
+  walletAddress: string,
+  vaultAddress: string,
+  strategyId: string,
+  percentage: number,
+  chain: string,
+  enabled: boolean = true
+): Promise<ApiResponse<any>> => {
+  try {
+    const authData = getStoredAuthData()
+    if (!authData) {
+      return { success: false, error: 'User is not authenticated.' }
+    }
+
+    const response = await fetch(`${API_BASE_URL}/strategies/subscribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        wallet_address: walletAddress,
+        vault_address: vaultAddress,
+        signature: authData.signature,
+        strategy_id: strategyId,
+        percentage: percentage,
+        chain: chain,
+        enabled: enabled,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { success: false, error: errorData.detail || 'Failed to subscribe to strategy.' }
+    }
+
+    const data = await response.json()
+    return { success: true, data }
+  } catch (error) {
+    console.error('Failed to subscribe to strategy:', error)
+    if (error instanceof Error) {
+      return { success: false, error: error.message }
+    }
+    return { success: false, error: 'An unknown error occurred' }
+  }
+}
+
+// Function to update a strategy subscription
+export const updateStrategySubscription = async (
+  walletAddress: string,
+  taskId: string,
+  updates: { percentage?: number; enabled?: boolean }
+): Promise<ApiResponse<{ success: boolean }>> => {
+  try {
+    const authData = getStoredAuthData()
+    if (!authData) {
+      return { success: false, error: 'User is not authenticated.' }
+    }
+
+    const response = await fetch(`${API_BASE_URL}/strategies/subscriptions/update`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        wallet_address: walletAddress,
+        signature: authData.signature,
+        task_id: taskId,
+        ...updates,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { success: false, error: errorData.detail || 'Failed to update subscription.' }
+    }
+
+    const data = await response.json()
+    return { success: true, data }
+  } catch (error) {
+    console.error('Failed to update subscription:', error)
+    if (error instanceof Error) {
+      return { success: false, error: error.message }
+    }
+    return { success: false, error: 'An unknown error occurred' }
+  }
+}
+
+// Function to delete a strategy subscription
+export const deleteStrategySubscription = async (
+  walletAddress: string,
+  taskId: string
+): Promise<ApiResponse<{ success: boolean }>> => {
+  try {
+    const authData = getStoredAuthData()
+    if (!authData) {
+      return { success: false, error: 'User is not authenticated.' }
+    }
+
+    const response = await fetch(`${API_BASE_URL}/strategies/subscriptions/delete`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        wallet_address: walletAddress,
+        signature: authData.signature,
+        task_id: taskId,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { success: false, error: errorData.detail || 'Failed to delete subscription.' }
+    }
+
+    const data = await response.json()
+    return { success: true, data }
+  } catch (error) {
+    console.error('Failed to delete subscription:', error)
     if (error instanceof Error) {
       return { success: false, error: error.message }
     }

@@ -49,8 +49,7 @@ import { useVaultVerification } from '@/hooks/useVaultVerification'
 import { useTokenBalancesAndApprovals } from '@/hooks/useTokenBalancesAndApprovals'
 import { useVaultTokenBalances } from '@/hooks/useVaultTokenBalances'
 import { useVaultAddress } from '@/hooks/useVaultAddress'
-import { useStrategies } from '@/hooks/useStrategies'
-import { useUserTasks } from '@/hooks/useUserTasks'
+import StrategyManager from '@/components/StrategyManager'
 import { getTokensForChain, ERC20_ABI, VAULT_FACTORY_ADDRESS, VAULT_FACTORY_ABI, SUPPORTED_CHAINS, Chain } from '@/config/tokens'
 import { useAppStore } from '@/store'
 
@@ -821,8 +820,13 @@ const DemaiPage = () => {
     )
   }
 
-  // Inline Strategy Component (extracted from StrategyTrigger)
+  // Inline Strategy Component wrapper
   const StrategyComponent = () => {
+    return <StrategyManager onClose={() => setCurrentView('portfolio')} />
+  }
+
+  // Old strategy component - keeping for reference but not used
+  const OldStrategyComponent = () => {
     // Load strategies and user tasks from hooks
     const { strategies: availableStrategies, isLoading: isStrategiesLoading } = useStrategies()
     const { tasks: userTasks, isLoading: isTasksLoading, deleteTask } = useUserTasks()

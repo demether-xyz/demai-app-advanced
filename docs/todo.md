@@ -1,2 +1,4 @@
+- strategies:
+    -
 - automation: refresh based on yield
 - notifications

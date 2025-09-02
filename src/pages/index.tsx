@@ -36,7 +36,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAccount, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt, useSignMessage } from 'wagmi'
 import { ethers } from 'ethers'
-import { XMarkIcon, ChevronDownIcon, ArrowTopRightOnSquareIcon, InformationCircleIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon, ChevronDownIcon, ArrowTopRightOnSquareIcon, InformationCircleIcon, TrashIcon, Bars3Icon } from '@heroicons/react/24/outline'
 import DemaiAuthHandler from '@/components/DemaiAuthHandler'
 import { useAuth } from '@/hooks/useAuth'
 import DemaiNavbar from '@/components/DemaiNavbar'
@@ -78,6 +78,7 @@ const DemaiPage = () => {
   const { hasValidSignature } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [currentView, setCurrentView] = useState<ViewType>('portfolio')
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Use the portfolio hook for fetching and store for reading
   const { refreshPortfolio } = usePortfolio(true)
@@ -430,9 +431,9 @@ const DemaiPage = () => {
     }
 
     return (
-      <div className="rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-6 h-full overflow-y-auto">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">Vault</h2>
+      <div className="rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-4 lg:p-6 h-full overflow-y-auto">
+        <div className="mb-4 lg:mb-6 flex items-center justify-between">
+          <h2 className="text-lg lg:text-xl font-semibold text-white">Vault</h2>
           <button
             onClick={() => setCurrentView('portfolio')}
             className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-700/50 hover:text-gray-200"
@@ -441,7 +442,7 @@ const DemaiPage = () => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-6">
           {/* Action Selection */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-300">Action</label>
@@ -449,7 +450,7 @@ const DemaiPage = () => {
               <button
                 type="button"
                 onClick={() => setAction('deposit')}
-                className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                className={`flex-1 rounded-md px-2 lg:px-4 py-2 text-sm font-medium transition-colors ${
                   action === 'deposit' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'
                 }`}
               >
@@ -459,7 +460,7 @@ const DemaiPage = () => {
                 type="button"
                 onClick={() => setAction('withdraw')}
                 disabled={!vaultHasVault && !isVaultLoading}
-                className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                className={`flex-1 rounded-md px-2 lg:px-4 py-2 text-sm font-medium transition-colors ${
                   action === 'withdraw' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'
                 } ${!vaultHasVault && !isVaultLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
@@ -472,8 +473,8 @@ const DemaiPage = () => {
           {vaultAddress && (
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-300">Vault Address</label>
-              <div className="rounded-lg border border-gray-600/60 bg-gray-800/80 px-4 py-3">
-                <div className="font-mono text-sm text-gray-300 break-all">
+              <div className="rounded-lg border border-gray-600/60 bg-gray-800/80 px-3 lg:px-4 py-3">
+                <div className="font-mono text-xs lg:text-sm text-gray-300 break-all">
                   {vaultAddress}
                 </div>
                 <div className="flex items-center justify-between mt-2">
@@ -501,7 +502,7 @@ const DemaiPage = () => {
               <button
                 type="button"
                 onClick={() => setIsChainDropdownOpen(!isChainDropdownOpen)}
-                className="w-full rounded-lg border border-gray-600/60 bg-gray-800/80 px-4 py-3 text-left text-white transition-all duration-200 hover:border-gray-500/60 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+                className="w-full rounded-lg border border-gray-600/60 bg-gray-800/80 px-3 lg:px-4 py-3 text-left text-white transition-all duration-200 hover:border-gray-500/60 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -567,7 +568,7 @@ const DemaiPage = () => {
               <button
                 type="button"
                 onClick={() => setIsTokenDropdownOpen(!isTokenDropdownOpen)}
-                className="w-full rounded-lg border border-gray-600/60 bg-gray-800/80 px-4 py-3 text-left text-white transition-all duration-200 hover:border-gray-500/60 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+                className="w-full rounded-lg border border-gray-600/60 bg-gray-800/80 px-3 lg:px-4 py-3 text-left text-white transition-all duration-200 hover:border-gray-500/60 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -646,13 +647,13 @@ const DemaiPage = () => {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.0"
-                className="w-full rounded-lg border border-gray-600/60 bg-gray-800/80 py-3 px-4 pr-16 text-white placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-full rounded-lg border border-gray-600/60 bg-gray-800/80 py-3 px-3 lg:px-4 pr-12 lg:pr-16 text-white placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
               {selectedToken && 'balance' in selectedToken && (
                 <button
                   type="button"
                   onClick={handleMaxClick}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                  className="absolute right-2 lg:right-3 top-1/2 -translate-y-1/2 text-xs lg:text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
                 >
                   MAX
                 </button>
@@ -876,9 +877,9 @@ const DemaiPage = () => {
     }
 
     return (
-      <div className="rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-6 h-full overflow-y-auto">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">Telegram Binding</h2>
+      <div className="rounded-lg border border-slate-700/40 bg-slate-900/60 backdrop-blur-md p-4 lg:p-6 h-full overflow-y-auto">
+        <div className="mb-4 lg:mb-6 flex items-center justify-between">
+          <h2 className="text-lg lg:text-xl font-semibold text-white">Telegram Binding</h2>
           <button
             onClick={() => setCurrentView('portfolio')}
             className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-700/50 hover:text-gray-200"
@@ -889,7 +890,7 @@ const DemaiPage = () => {
 
         <div className="max-w-2xl mx-auto">
           {/* Progress Indicator */}
-          <div className="mb-8">
+          <div className="mb-6 lg:mb-8">
             <div className="flex items-center justify-between mb-2">
               <div className={`flex items-center ${step >= 1 ? 'text-blue-400' : 'text-gray-500'}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
@@ -897,7 +898,7 @@ const DemaiPage = () => {
                 }`}>
                   1
                 </div>
-                <span className="ml-2 text-sm font-medium">Sign Message</span>
+                <span className="ml-2 text-xs lg:text-sm font-medium">Sign Message</span>
               </div>
               <div className={`flex-1 h-0.5 mx-4 ${step >= 2 ? 'bg-blue-400' : 'bg-gray-600'}`} />
               <div className={`flex items-center ${step >= 2 ? 'text-blue-400' : 'text-gray-500'}`}>
@@ -906,23 +907,23 @@ const DemaiPage = () => {
                 }`}>
                   2
                 </div>
-                <span className="ml-2 text-sm font-medium">Send to Bot</span>
+                <span className="ml-2 text-xs lg:text-sm font-medium">Send to Bot</span>
               </div>
             </div>
           </div>
 
           {/* Step Content */}
           {step === 1 ? (
-            <div className="space-y-6">
-              <div className="bg-gray-800/60 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Step 1: Sign Binding Message</h3>
+            <div className="space-y-4 lg:space-y-6">
+              <div className="bg-gray-800/60 rounded-lg p-4 lg:p-6">
+                <h3 className="text-base lg:text-lg font-semibold text-white mb-4">Step 1: Sign Binding Message</h3>
                 <p className="text-gray-300 mb-6">
                   Sign a message with your wallet to prove ownership. This signature will be used to bind your Telegram account to your wallet address.
                 </p>
                 
-                <div className="bg-gray-900/60 rounded-lg p-4 mb-6">
-                  <p className="text-sm text-gray-400 mb-2">Message to sign:</p>
-                  <p className="font-mono text-sm text-white break-all">{bindingMessage}</p>
+                <div className="bg-gray-900/60 rounded-lg p-3 lg:p-4 mb-4 lg:mb-6">
+                  <p className="text-xs lg:text-sm text-gray-400 mb-2">Message to sign:</p>
+                  <p className="font-mono text-xs lg:text-sm text-white break-all">{bindingMessage}</p>
                 </div>
 
                 <button
@@ -942,9 +943,9 @@ const DemaiPage = () => {
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="bg-gray-800/60 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Step 2: Send Verification to Telegram Bot</h3>
+            <div className="space-y-4 lg:space-y-6">
+              <div className="bg-gray-800/60 rounded-lg p-4 lg:p-6">
+                <h3 className="text-base lg:text-lg font-semibold text-white mb-4">Step 2: Send Verification to Telegram Bot</h3>
                 <p className="text-gray-300 mb-6">
                   Copy the verification command below and send it to our Telegram bot to complete the binding process.
                 </p>
@@ -953,15 +954,15 @@ const DemaiPage = () => {
                   {/* Complete Command Display */}
                   <div>
                     <p className="text-sm text-gray-400 mb-2">Complete verification command:</p>
-                    <div className="bg-gray-900/60 rounded-lg p-4 relative">
-                      <p className="font-mono text-xs text-white break-all pr-20">
+                    <div className="bg-gray-900/60 rounded-lg p-3 lg:p-4 relative">
+                      <p className="font-mono text-xs text-white break-all pr-16 lg:pr-20">
                         /verify {address} {vaultAddress} {signature}
                       </p>
                       <button
                         onClick={handleCopyCommand}
-                        className="absolute top-3 right-3 px-3 py-1 text-xs font-medium text-blue-400 hover:text-blue-300 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
+                        className="absolute top-2 lg:top-3 right-2 lg:right-3 px-2 lg:px-3 py-1 text-xs font-medium text-blue-400 hover:text-blue-300 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
                       >
-                        {isCopied ? 'Copied!' : 'Copy Command'}
+                        {isCopied ? 'Copied!' : 'Copy'}
                       </button>
                     </div>
                   </div>
@@ -984,12 +985,13 @@ const DemaiPage = () => {
                       href={telegramBotUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-2 px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white font-medium rounded-lg transition-colors"
+                      className="inline-flex items-center space-x-2 px-4 lg:px-6 py-2 lg:py-3 bg-sky-600 hover:bg-sky-700 text-white font-medium rounded-lg transition-colors text-sm lg:text-base"
                     >
                       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.56c-.21 2.27-1.13 7.75-1.6 10.29-.2 1.08-.58 1.44-.96 1.47-.81.07-1.43-.54-2.22-1.06-1.23-.82-1.93-1.33-3.12-2.13-1.38-.93-.49-1.44.3-2.27.21-.22 3.82-3.5 3.89-3.8.01-.04.01-.19-.07-.27-.09-.08-.22-.05-.32-.03-.13.03-2.24 1.42-6.32 4.18-.6.42-1.14.62-1.63.61-.54-.01-1.57-.3-2.34-.55-.94-.31-1.69-.47-1.63-.99.03-.28.41-.57 1.13-.86 4.43-1.93 7.39-3.2 8.88-3.82 4.23-1.75 5.11-2.06 5.68-2.07.13 0 .4.03.58.17.15.12.19.28.21.44-.01.14.01.31 0 .47z"/>
                       </svg>
-                      <span>Open @demetherbot</span>
+                      <span className="hidden sm:inline">Open @demetherbot</span>
+                      <span className="sm:hidden">@demetherbot</span>
                       <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                     </a>
                   </div>
@@ -1043,39 +1045,71 @@ const DemaiPage = () => {
 
         {/* Navbar - Fixed at top - ALWAYS visible so RainbowKit works */}
         <div className="relative z-10">
-          <DemaiNavbar />
+          <DemaiNavbar 
+            isMobileMenuOpen={isMobileMenuOpen}
+            setIsMobileMenuOpen={setIsMobileMenuOpen}
+          />
         </div>
 
         {/* Main Content Area - Only show when authenticated */}
         {shouldShowMainApp && (
           <div className="relative z-10 flex-1 overflow-hidden">
             <div className="flex h-full">
-              {/* Left Panel - Portfolio Summary + Chat Interface */}
-              <div className="flex-shrink-0 w-80 flex flex-col overflow-hidden">
-                {/* Portfolio Summary Section */}
-                <div className="p-8 pb-4">
-                  <h1 className="mb-6 text-4xl font-bold text-white">demAI</h1>
-
-                  {/* Portfolio Value */}
-                  <div className="mb-6">
-                    <div className="mb-2 text-5xl font-bold text-white">
-                      {portfolioData && !portfolioData.isLoading && portfolioData.total_value_usd > 0
-                        ? formatCurrency(portfolioData.total_value_usd)
-                        : portfolioData?.isLoading
-                          ? 'Loading...'
-                          : '$0.00'}
+              {/* Left Panel - Portfolio Summary + Navigation */}
+              <div className={`
+                flex-shrink-0 flex flex-col overflow-hidden transition-all duration-300
+                lg:w-80 lg:relative lg:translate-x-0
+                ${isMobileMenuOpen 
+                  ? 'fixed inset-y-0 left-0 w-80 z-40 translate-x-0' 
+                  : 'fixed inset-y-0 left-0 w-80 z-40 -translate-x-full lg:translate-x-0'
+                }
+              `}>
+                {/* Mobile Overlay */}
+                {isMobileMenuOpen && (
+                  <div 
+                    className="lg:hidden fixed inset-0 bg-black/50 z-30"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  />
+                )}
+                
+                {/* Panel Content */}
+                <div className="relative z-40 h-full bg-black/60 backdrop-blur-md border-r border-slate-700/40">
+                  {/* Portfolio Summary Section */}
+                  <div className="p-4 lg:p-8 pb-4">
+                    {/* Mobile Close Button */}
+                    <div className="lg:hidden flex justify-between items-center mb-4">
+                      <h1 className="text-3xl font-bold text-white">demAI</h1>
+                      <button
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="rounded-lg p-2 text-gray-400 hover:bg-gray-700/50 hover:text-gray-200"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
                     </div>
                     
-                    <div className="mb-1 text-lg font-medium text-white/70 flex items-center">
-                      <span>
-                        {portfolioData?.isLoading
-                          ? 'Fetching portfolio data...'
-                          : portfolioData?.error
-                            ? 'Unable to load portfolio'
-                            : portfolioData?.total_value_usd === 0
-                              ? 'No funds in portfolio yet'
-                              : `Across ${Object.keys(portfolioData?.chains || {}).length} chains`}
-                      </span>
+                    {/* Desktop Title */}
+                    <h1 className="hidden lg:block mb-6 text-4xl font-bold text-white">demAI</h1>
+
+                    {/* Portfolio Value */}
+                    <div className="mb-6">
+                      <div className="mb-2 text-3xl lg:text-5xl font-bold text-white">
+                        {portfolioData && !portfolioData.isLoading && portfolioData.total_value_usd > 0
+                          ? formatCurrency(portfolioData.total_value_usd)
+                          : portfolioData?.isLoading
+                            ? 'Loading...'
+                            : '$0.00'}
+                      </div>
+                    
+                      <div className="mb-1 text-base lg:text-lg font-medium text-white/70 flex items-center">
+                        <span className="break-words">
+                          {portfolioData?.isLoading
+                            ? 'Fetching portfolio data...'
+                            : portfolioData?.error
+                              ? 'Unable to load portfolio'
+                              : portfolioData?.total_value_usd === 0
+                                ? 'No funds in portfolio yet'
+                                : `Across ${Object.keys(portfolioData?.chains || {}).length} chains`}
+                        </span>
                       {!portfolioData?.isLoading && !portfolioData?.error && (
                         <button
                           onClick={refreshPortfolio}
@@ -1087,93 +1121,109 @@ const DemaiPage = () => {
                           </svg>
                         </button>
                       )}
-                    </div>
-                    <div className="flex items-center text-sm font-medium text-green-400">
-                      <svg className="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                      </svg>
-                      {portfolioData?.isLoading
-                        ? 'Loading...'
-                        : portfolioData?.error
-                          ? 'Data unavailable'
-                          : portfolioData?.total_value_usd === 0
-                            ? 'Deploy a vault to start'
-                            : Object.keys(portfolioData?.strategies || {}).length > 0
-                              ? `${portfolioData?.summary?.total_tokens || 0} tokens, ${Object.keys(portfolioData?.strategies || {}).length} strategies (${formatCurrency(Object.values(portfolioData?.strategies || {}).reduce((sum, s) => sum + (s.total_value_usd || 0), 0))})`
-                              : `${portfolioData?.summary?.total_tokens || 0} tokens`}
-                    </div>
-                  </div>
-
-                  {/* View Navigation Buttons */}
-                  <div className="flex flex-col space-y-3">
-                    <div 
-                      onClick={() => setCurrentView('portfolio')}
-                      className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
-                        currentView === 'portfolio' ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'
-                      }`}
-                    >
-                      <svg className="mr-2 h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                      <span className="text-sm font-medium text-white">Portfolio</span>
+                      </div>
+                      <div className="flex items-center text-xs lg:text-sm font-medium text-green-400">
+                        <svg className="mr-1 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                        <span className="break-words">
+                          {portfolioData?.isLoading
+                            ? 'Loading...'
+                            : portfolioData?.error
+                              ? 'Data unavailable'
+                              : portfolioData?.total_value_usd === 0
+                                ? 'Deploy a vault to start'
+                                : Object.keys(portfolioData?.strategies || {}).length > 0
+                                  ? `${portfolioData?.summary?.total_tokens || 0} tokens, ${Object.keys(portfolioData?.strategies || {}).length} strategies (${formatCurrency(Object.values(portfolioData?.strategies || {}).reduce((sum, s) => sum + (s.total_value_usd || 0), 0))})`
+                                  : `${portfolioData?.summary?.total_tokens || 0} tokens`}
+                        </span>
+                      </div>
                     </div>
 
-                    <div 
-                      onClick={() => setCurrentView('vault')}
-                      className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
-                        currentView === 'vault' ? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'
-                      }`}
-                    >
-                      <svg className="mr-2 h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      <span className="text-sm font-medium text-white">Vault</span>
-                    </div>
+                    {/* View Navigation Buttons */}
+                    <div className="flex flex-col space-y-3">
+                      <div 
+                        onClick={() => {
+                          setCurrentView('portfolio')
+                          setIsMobileMenuOpen(false)
+                        }}
+                        className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
+                          currentView === 'portfolio' ? 'bg-purple-700' : 'bg-purple-600 hover:bg-purple-700'
+                        }`}
+                      >
+                        <svg className="mr-2 h-5 w-5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <span className="text-sm font-medium text-white">Portfolio</span>
+                      </div>
 
-                    <div 
-                      onClick={() => setCurrentView('strategy')}
-                      className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
-                        currentView === 'strategy' ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
-                      }`}
-                    >
-                      <svg className="mr-2 h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <span className="text-sm font-medium text-white">Strategy</span>
-                    </div>
+                      <div 
+                        onClick={() => {
+                          setCurrentView('vault')
+                          setIsMobileMenuOpen(false)
+                        }}
+                        className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
+                          currentView === 'vault' ? 'bg-green-700' : 'bg-green-600 hover:bg-green-700'
+                        }`}
+                      >
+                        <svg className="mr-2 h-5 w-5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span className="text-sm font-medium text-white">Vault</span>
+                      </div>
 
-                    <div 
-                      onClick={() => setCurrentView('chat')}
-                      className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
-                        currentView === 'chat' ? 'bg-orange-700' : 'bg-orange-600 hover:bg-orange-700'
-                      }`}
-                    >
-                      <svg className="mr-2 h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      <span className="text-sm font-medium text-white">Chat Assistant</span>
-                    </div>
+                      <div 
+                        onClick={() => {
+                          setCurrentView('strategy')
+                          setIsMobileMenuOpen(false)
+                        }}
+                        className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
+                          currentView === 'strategy' ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                      >
+                        <svg className="mr-2 h-5 w-5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span className="text-sm font-medium text-white">Strategy</span>
+                      </div>
 
-                    <div 
-                      onClick={() => setCurrentView('telegram')}
-                      className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
-                        currentView === 'telegram' ? 'bg-sky-700' : 'bg-sky-600 hover:bg-sky-700'
-                      }`}
-                    >
-                      <svg className="mr-2 h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.56c-.21 2.27-1.13 7.75-1.6 10.29-.2 1.08-.58 1.44-.96 1.47-.81.07-1.43-.54-2.22-1.06-1.23-.82-1.93-1.33-3.12-2.13-1.38-.93-.49-1.44.3-2.27.21-.22 3.82-3.5 3.89-3.8.01-.04.01-.19-.07-.27-.09-.08-.22-.05-.32-.03-.13.03-2.24 1.42-6.32 4.18-.6.42-1.14.62-1.63.61-.54-.01-1.57-.3-2.34-.55-.94-.31-1.69-.47-1.63-.99.03-.28.41-.57 1.13-.86 4.43-1.93 7.39-3.2 8.88-3.82 4.23-1.75 5.11-2.06 5.68-2.07.13 0 .4.03.58.17.15.12.19.28.21.44-.01.14.01.31 0 .47z"/>
-                      </svg>
-                      <span className="text-sm font-medium text-white">Telegram</span>
+                      <div 
+                        onClick={() => {
+                          setCurrentView('chat')
+                          setIsMobileMenuOpen(false)
+                        }}
+                        className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
+                          currentView === 'chat' ? 'bg-orange-700' : 'bg-orange-600 hover:bg-orange-700'
+                        }`}
+                      >
+                        <svg className="mr-2 h-5 w-5 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        <span className="text-sm font-medium text-white">Chat Assistant</span>
+                      </div>
+
+                      <div 
+                        onClick={() => {
+                          setCurrentView('telegram')
+                          setIsMobileMenuOpen(false)
+                        }}
+                        className={`flex h-12 cursor-pointer items-center justify-center rounded-xl p-3 transition-colors ${
+                          currentView === 'telegram' ? 'bg-sky-700' : 'bg-sky-600 hover:bg-sky-700'
+                        }`}
+                      >
+                        <svg className="mr-2 h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.56c-.21 2.27-1.13 7.75-1.6 10.29-.2 1.08-.58 1.44-.96 1.47-.81.07-1.43-.54-2.22-1.06-1.23-.82-1.93-1.33-3.12-2.13-1.38-.93-.49-1.44.3-2.27.21-.22 3.82-3.5 3.89-3.8.01-.04.01-.19-.07-.27-.09-.08-.22-.05-.32-.03-.13.03-2.24 1.42-6.32 4.18-.6.42-1.14.62-1.63.61-.54-.01-1.57-.3-2.34-.55-.94-.31-1.69-.47-1.63-.99.03-.28.41-.57 1.13-.86 4.43-1.93 7.39-3.2 8.88-3.82 4.23-1.75 5.11-2.06 5.68-2.07.13 0 .4.03.58.17.15.12.19.28.21.44-.01.14.01.31 0 .47z"/>
+                        </svg>
+                        <span className="text-sm font-medium text-white">Telegram</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-
-
               </div>
 
               {/* Right Panel - Dynamic Content Based on Current View */}
-              <div className="flex-1 overflow-hidden">
-                <div className="h-full p-8">
+              <div className="flex-1 overflow-hidden lg:ml-0">
+                <div className="h-full p-4 lg:p-8">
                   {currentView === 'portfolio' && (
                     <Portfolio
                       expanded={true}

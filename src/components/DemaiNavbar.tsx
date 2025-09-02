@@ -4,17 +4,30 @@ import { MagnifyingGlassIcon, Cog6ToothIcon, Bars3Icon, UserIcon } from '@heroic
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useEventEmitter } from '@/hooks/useEvents'
 
-const DemaiNavbar: React.FC = () => {
+interface DemaiNavbarProps {
+  isMobileMenuOpen?: boolean
+  setIsMobileMenuOpen?: (open: boolean) => void
+}
+
+const DemaiNavbar: React.FC<DemaiNavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const emit = useEventEmitter()
   return (
-    <nav className="relative flex h-14 items-center justify-between border-b border-gray-800/50 bg-black/95 px-6 backdrop-blur-md">
-      {/* Left Section - Logo */}
-      <div className="flex items-center space-x-8">
-        <div className="flex items-center space-x-2">
-          {/* Logo */}
-          <div className="relative h-12 w-36">
-            <Image src="/images/logo.webp" alt="demAI Logo" fill className="object-contain" priority />
-          </div>
+    <nav className="relative flex h-14 items-center justify-between border-b border-gray-800/50 bg-black/95 px-4 lg:px-6 backdrop-blur-md">
+      {/* Left Section - Mobile Menu Button + Logo */}
+      <div className="flex items-center space-x-3">
+        {/* Mobile Menu Button */}
+        {setIsMobileMenuOpen && (
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="lg:hidden rounded-lg p-2 text-white hover:bg-gray-700/50 transition-colors"
+          >
+            <Bars3Icon className="h-6 w-6" />
+          </button>
+        )}
+        
+        {/* Logo */}
+        <div className="relative h-8 w-24 lg:h-12 lg:w-36">
+          <Image src="/images/logo.webp" alt="demAI Logo" fill className="object-contain" priority />
         </div>
       </div>
 
@@ -32,8 +45,8 @@ const DemaiNavbar: React.FC = () => {
       </div>
       */}
 
-      {/* Right Section - Navigation Tabs and Controls */}
-      <div className="flex items-center space-x-6">
+      {/* Right Section - Navigation Tabs and Controls (Hidden on Mobile) */}
+      <div className="hidden lg:flex items-center space-x-6">
         {/* Navigation Tabs */}
         <div className="flex items-center space-x-2 rounded-lg bg-gray-800/40 p-1">
           <button className="rounded-md bg-blue-600/80 px-4 py-2 text-sm text-white shadow-sm">Overview</button>
@@ -132,6 +145,78 @@ const DemaiNavbar: React.FC = () => {
             }}
           </ConnectButton.Custom>
         </div>
+      </div>
+
+      {/* Mobile-only Connect Button */}
+      <div className="lg:hidden">
+        <ConnectButton.Custom>
+          {({
+            account,
+            chain,
+            openAccountModal,
+            openChainModal,
+            openConnectModal,
+            authenticationStatus,
+            mounted,
+          }) => {
+            const ready = mounted && authenticationStatus !== 'loading'
+            const connected =
+              ready &&
+              account &&
+              chain &&
+              (!authenticationStatus ||
+                authenticationStatus === 'authenticated')
+
+            return (
+              <div
+                {...(!ready && {
+                  'aria-hidden': true,
+                  'style': {
+                    opacity: 0,
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                  },
+                })}
+              >
+                {(() => {
+                  if (!connected) {
+                    return (
+                      <button
+                        onClick={openConnectModal}
+                        type="button"
+                        className="rounded-md px-3 py-1.5 text-xs text-gray-400 transition-colors duration-200 hover:text-gray-200"
+                      >
+                        Connect
+                      </button>
+                    )
+                  }
+
+                  if (chain.unsupported) {
+                    return (
+                      <button
+                        onClick={openChainModal}
+                        type="button"
+                        className="rounded-md px-3 py-1.5 text-xs text-red-400 transition-colors duration-200 hover:text-red-200"
+                      >
+                        Wrong
+                      </button>
+                    )
+                  }
+
+                  return (
+                    <button
+                      onClick={openAccountModal}
+                      type="button"
+                      className="rounded-md bg-green-600/80 px-3 py-1.5 text-xs text-white shadow-sm transition-colors duration-200 hover:bg-green-600"
+                    >
+                      {account.displayName?.split('.')[0] || account.displayName}
+                    </button>
+                  )
+                })()}
+              </div>
+            )
+          }}
+        </ConnectButton.Custom>
       </div>
     </nav>
   )

@@ -270,72 +270,85 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
 
           <div className="space-y-3">
             {subscriptions.map((sub) => (
-              <div key={sub._id} className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <div className="flex items-center space-x-2">
+              <div key={sub._id} className="bg-gray-800/40 border border-gray-700/50 rounded-xl p-3 lg:p-4">
+                <div className="space-y-3">
+                  {/* Strategy Header with Title and Icons */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 lg:space-x-3 flex-1 min-w-0">
+                      <div className="flex items-center space-x-1 lg:space-x-2 flex-shrink-0">
                         {sub.strategy?.tokens.map(token => (
-                          <TokenIcon key={token} symbol={token} className="w-5 h-5" />
+                          <TokenIcon key={token} symbol={token} className="w-4 h-4 lg:w-5 lg:h-5" />
                         ))}
                       </div>
-                      <div>
-                        <div className="font-medium text-white">{sub.strategy?.name || sub.strategy_id}</div>
-                        <div className="text-sm text-gray-400">{sub.chain} • {sub.strategy?.frequency}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-white text-sm lg:text-base truncate">{sub.strategy?.name || sub.strategy_id}</div>
+                        <div className="text-xs lg:text-sm text-gray-400">{sub.chain} • {sub.strategy?.frequency}</div>
                       </div>
                     </div>
                     
-                    {/* Execution Status */}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    {/* Percentage Display (Mobile: below, Desktop: right) */}
+                    <div className="hidden lg:flex items-center">
+                      <span className="text-white font-medium text-base">{sub.percentage}%</span>
+                    </div>
+                  </div>
+                  
+                  {/* Execution Status */}
+                  <div className="flex flex-wrap gap-x-2 lg:gap-x-4 gap-y-1 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-500">Executions:</span>
+                      <span className="text-gray-300">{sub.execution_count || 0}</span>
+                    </div>
+                    
+                    {sub.last_executed && (
                       <div className="flex items-center space-x-1">
-                        <span className="text-gray-500">Executions:</span>
-                        <span className="text-gray-300">{sub.execution_count || 0}</span>
+                        <span className="text-gray-500">Last run:</span>
+                        <span className="text-gray-300">
+                          {formatDate(sub.last_executed)}
+                        </span>
                       </div>
-                      
-                      {sub.last_executed && (
-                        <div className="flex items-center space-x-1">
-                          <span className="text-gray-500">Last run:</span>
-                          <span className="text-gray-300">
-                            {formatDate(sub.last_executed)}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {sub.next_run_time && (
-                        <div className="flex items-center space-x-1">
-                          <span className="text-gray-500">Next run:</span>
-                          <span className="text-gray-300">
-                            {formatFutureDate(sub.next_run_time)}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {sub.last_execution_status && (
-                        <div className="flex items-center space-x-1">
-                          <span className="text-gray-500">Status:</span>
-                          <span className={sub.last_execution_status === 'success' ? 'text-green-400' : 'text-red-400'}>
-                            {sub.last_execution_status}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    )}
                     
-                    {sub.last_execution_memo && (
-                      <div className="mt-2 text-xs text-gray-400 italic bg-gray-700/30 rounded px-2 py-1">
-                        "{sub.last_execution_memo}"
+                    {sub.next_run_time && (
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-500">Next run:</span>
+                        <span className="text-gray-300">
+                          {formatFutureDate(sub.next_run_time)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {sub.last_execution_status && (
+                      <div className="flex items-center space-x-1">
+                        <span className="text-gray-500">Status:</span>
+                        <span className={sub.last_execution_status === 'success' ? 'text-green-400' : 'text-red-400'}>
+                          {sub.last_execution_status}
+                        </span>
                       </div>
                     )}
                   </div>
                   
-                  <div className="flex items-center space-x-2">
-                    {editingSubscription === sub._id ? (
-                      <>
-                        <div className="flex items-center space-x-2">
+                  {sub.last_execution_memo && (
+                    <div className="text-xs text-gray-400 italic bg-gray-700/30 rounded px-2 py-1 break-words">
+                      "{sub.last_execution_memo}"
+                    </div>
+                  )}
+                  
+                  {/* Action Buttons Row */}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-700/30">
+                    {/* Mobile Percentage Display */}
+                    <div className="lg:hidden">
+                      <span className="text-white font-medium text-sm">{sub.percentage}%</span>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 ml-auto">
+                      {editingSubscription === sub._id ? (
+                        <div className="flex items-center gap-2">
                           <input
                             type="number"
                             value={editPercentage}
                             onChange={(e) => setEditPercentage(e.target.value)}
-                            className="w-16 px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-white"
+                            className="w-12 lg:w-16 px-1 lg:px-2 py-1 text-xs lg:text-sm bg-gray-700 border border-gray-600 rounded text-white"
                             placeholder="%"
                             min="1"
                             max="100"
@@ -356,37 +369,36 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
                             Cancel
                           </button>
                         </div>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-white font-medium">{sub.percentage}%</span>
-                        <button
-                          onClick={() => {
-                            setEditingSubscription(sub._id)
-                            setEditPercentage(sub.percentage.toString())
-                          }}
-                          className="p-1 text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded transition-colors"
-                          title="Edit percentage"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleToggleEnabled(sub._id, !sub.enabled)}
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            sub.enabled ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
-                          }`}
-                        >
-                          {sub.enabled ? 'Active' : 'Paused'}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(sub._id)}
-                          className="p-1 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors"
-                          title="Delete strategy"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditingSubscription(sub._id)
+                              setEditPercentage(sub.percentage.toString())
+                            }}
+                            className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded transition-colors"
+                            title="Edit percentage"
+                          >
+                            <PencilIcon className="h-3 w-3 lg:h-4 lg:w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleEnabled(sub._id, !sub.enabled)}
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              sub.enabled ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+                            }`}
+                          >
+                            {sub.enabled ? 'Active' : 'Paused'}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(sub._id)}
+                            className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors"
+                            title="Delete strategy"
+                          >
+                            <TrashIcon className="h-3 w-3 lg:h-4 lg:w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -396,8 +408,8 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
       )}
 
       {/* Add New Strategy Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <h3 className="text-lg font-semibold text-white">Add New Strategy</h3>
+      <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-6">
+        <h3 className="text-base lg:text-lg font-semibold text-white">Add New Strategy</h3>
         
         {/* Strategy Selection */}
         <div>
@@ -406,22 +418,22 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
             <button
               type="button"
               onClick={() => setIsStrategyDropdownOpen(!isStrategyDropdownOpen)}
-              className="w-full rounded-xl border border-gray-600/60 bg-gray-800/80 px-4 py-4 text-left text-white transition-all duration-200 hover:border-gray-500/60 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+              className="w-full rounded-xl border border-gray-600/60 bg-gray-800/80 px-3 lg:px-4 py-3 lg:py-4 text-left text-white transition-all duration-200 hover:border-gray-500/60 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
             >
               {selectedStrategy ? (
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 lg:space-x-3 mb-2">
+                      <div className="flex items-center space-x-1 lg:space-x-2 flex-shrink-0">
                         {selectedStrategy.tokens.map((token: string) => (
-                          <TokenIcon key={token} symbol={token} className="w-5 h-5" />
+                          <TokenIcon key={token} symbol={token} className="w-4 h-4 lg:w-5 lg:h-5" />
                         ))}
                       </div>
-                      <div className="font-medium">{selectedStrategy.name}</div>
+                      <div className="font-medium text-sm lg:text-base truncate">{selectedStrategy.name}</div>
                     </div>
-                    <div className="text-sm text-gray-400 mb-2">{selectedStrategy.description}</div>
-                    <div className="flex items-center space-x-3 text-xs">
-                      <span className="text-gray-500">{selectedStrategy.chain} • {selectedStrategy.frequency}</span>
+                    <div className="text-xs lg:text-sm text-gray-400 mb-2 line-clamp-2">{selectedStrategy.description}</div>
+                    <div className="flex items-center space-x-2 lg:space-x-3 text-xs">
+                      <span className="text-gray-500 flex-shrink-0">{selectedStrategy.chain} • {selectedStrategy.frequency}</span>
                       {selectedStrategy.current_yields && Object.keys(selectedStrategy.current_yields).length > 0 && (
                         <span className="text-green-400">
                           Current APY: {Object.entries(selectedStrategy.current_yields).map(([token, apy]) => 
@@ -432,7 +444,7 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
                     </div>
                   </div>
                   <ChevronDownIcon
-                    className={`h-5 w-5 text-gray-400 transition-transform ml-2 ${isStrategyDropdownOpen ? 'rotate-180' : ''}`}
+                    className={`h-4 w-4 lg:h-5 lg:w-5 text-gray-400 transition-transform ml-1 lg:ml-2 flex-shrink-0 ${isStrategyDropdownOpen ? 'rotate-180' : ''}`}
                   />
                 </div>
               ) : (
@@ -459,7 +471,7 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
                           }
                         }}
                         disabled={isAlreadySubscribed}
-                        className={`w-full rounded-md px-3 py-3 text-left transition-colors ${
+                        className={`w-full rounded-md px-2 lg:px-3 py-2 lg:py-3 text-left transition-colors ${
                           isAlreadySubscribed 
                             ? 'opacity-50 cursor-not-allowed bg-gray-800/50' 
                             : 'hover:bg-gray-700/50'
@@ -467,19 +479,19 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2 lg:space-x-3 mb-2">
+                              <div className="flex items-center space-x-1 lg:space-x-2 flex-shrink-0">
                                 {strategy.tokens.map((token: string) => (
-                                  <TokenIcon key={token} symbol={token} className="w-5 h-5" />
+                                  <TokenIcon key={token} symbol={token} className="w-4 h-4 lg:w-5 lg:h-5" />
                                 ))}
                               </div>
-                              <div className="font-medium text-white">
-                                {strategy.name}
-                                {isAlreadySubscribed && <span className="ml-2 text-xs text-gray-500">(Already subscribed)</span>}
+                              <div className="font-medium text-white text-sm lg:text-base min-w-0 flex-1">
+                                <div className="truncate">{strategy.name}</div>
+                                {isAlreadySubscribed && <span className="text-xs text-gray-500">(Already subscribed)</span>}
                               </div>
                             </div>
-                            <div className="text-sm text-gray-400 mb-2">{strategy.description}</div>
-                            <div className="flex items-center space-x-3 text-xs">
+                            <div className="text-xs lg:text-sm text-gray-400 mb-2 line-clamp-2">{strategy.description}</div>
+                            <div className="flex items-center space-x-2 lg:space-x-3 text-xs flex-wrap gap-y-1">
                               <span className="text-gray-500">{strategy.chain} • {strategy.frequency}</span>
                               {strategy.current_yields && Object.keys(strategy.current_yields).length > 0 && (
                                 <span className="text-green-400">
@@ -502,39 +514,38 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
 
         {/* Strategy Details */}
         {selectedStrategy && (
-          <div className="rounded-xl border border-gray-700/50 bg-gray-800/40 p-4">
-            <h3 className="text-sm font-medium text-gray-300 mb-3">Strategy Details</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
+          <div className="rounded-xl border border-gray-700/50 bg-gray-800/40 p-3 lg:p-4">
+            <h3 className="text-xs lg:text-sm font-medium text-gray-300 mb-3">Strategy Details</h3>
+            <div className="space-y-2 text-xs lg:text-sm">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-400">Chain:</span>
                 <span className="text-white">{selectedStrategy.chain}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Tokens:</span>
-                <span className="text-white flex items-center space-x-1">
+              <div className="flex justify-between items-start">
+                <span className="text-gray-400 flex-shrink-0">Tokens:</span>
+                <span className="text-white flex items-center space-x-1 flex-wrap justify-end">
                   {selectedStrategy.tokens.map((token: string) => (
                     <div key={token} className="flex items-center space-x-1">
-                      <TokenIcon symbol={token} className="w-4 h-4" />
+                      <TokenIcon symbol={token} className="w-3 h-3 lg:w-4 lg:h-4" />
                       <span>{token}</span>
                     </div>
                   ))}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Protocols:</span>
-                <span className="text-white">{selectedStrategy.protocols.join(', ')}</span>
+              <div className="flex justify-between items-start">
+                <span className="text-gray-400 flex-shrink-0">Protocols:</span>
+                <span className="text-white text-right break-words">{selectedStrategy.protocols.join(', ')}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-400">Frequency:</span>
                 <span className="text-white">{selectedStrategy.frequency}</span>
               </div>
               {selectedStrategy.current_yields && Object.keys(selectedStrategy.current_yields).length > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Current Yields:</span>
-                  <span className="text-white">
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-400 flex-shrink-0">Current Yields:</span>
+                  <span className="text-white text-right">
                     {Object.entries(selectedStrategy.current_yields).map(([token, apy], index) => (
-                      <span key={token}>
-                        {index > 0 && ', '}
+                      <span key={token} className="block">
                         {token}: <span className="text-green-400">{apy}% APY</span>
                       </span>
                     ))}
@@ -564,9 +575,9 @@ const StrategyManager: React.FC<StrategyManagerProps> = ({ onClose }) => {
                 placeholder="Enter percentage (1-100)"
                 min="1"
                 max="100"
-                className="w-full rounded-xl border border-gray-600/60 bg-gray-800/80 py-3 px-4 pr-12 text-white placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-full rounded-xl border border-gray-600/60 bg-gray-800/80 py-2 lg:py-3 px-3 lg:px-4 pr-8 lg:pr-12 text-white placeholder-gray-500 transition-all duration-200 focus:border-blue-500/60 focus:outline-none focus:ring-1 focus:ring-blue-500/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">%</span>
+              <span className="absolute right-3 lg:right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm lg:text-base">%</span>
             </div>
           </div>
         )}

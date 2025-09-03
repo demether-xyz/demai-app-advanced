@@ -57,10 +57,18 @@ export interface ChainStrategy {
   }
 }
 
+export interface AssetData {
+  protocol: string;
+  asset_type: string;
+  total_value_usd: number;
+  tokens: Record<string, PortfolioToken>;
+}
+
 export interface ChainData {
   chain_id: number;
   total_value_usd: number;
   tokens: Record<string, PortfolioToken>;
+  assets: Record<string, AssetData>;
   strategies: Record<string, ChainStrategy>;
 }
 

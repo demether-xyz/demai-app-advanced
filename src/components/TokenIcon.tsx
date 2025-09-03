@@ -122,6 +122,19 @@ const TOKEN_ICONS: Record<string, React.FC<{ className?: string }>> = {
     </svg>
   ),
   
+  // AUSD
+  AUSD: ({ className = "w-8 h-8" }) => (
+    <svg className={className} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#9A9350"/>
+      <path d="M15.65 7.64V14.23c0 .26-.32.43-.57.31L12.18 12.2l1.22-3.26c.09-.23.31-.38.55-.38h1.69v-.02z" fill="white"/>
+      <path d="M15.65 16.55v3.6c0 .24-.3.39-.53.34L11.2 16.73l1.36-3.36 3.38 3.31c.22.22.35.53.35.84l-.01.03z" fill="white"/>
+      <path d="M15.65 22.34v1.62H8.47c-.42 0-.68-.4-.54-.8l2.41-6.31 4.99 5.01c.21.21.32.5.32.79v-.31z" fill="white"/>
+      <path d="M16.35 7.64V14.23c0 .26.32.43.57.31L19.82 12.2l-1.22-3.26c-.09-.23-.31-.38-.55-.38h-1.69v-.02z" fill="white"/>
+      <path d="M16.35 16.55v3.6c0 .24.3.39.53.34L20.8 16.73l-1.36-3.36-3.38 3.31c-.22.22-.35.53-.35.84l.01.03z" fill="white"/>
+      <path d="M16.35 22.34v1.62h7.18c.42 0 .68-.4.54-.8l-2.41-6.31-4.99 5.01c-.21.21-.32.5-.32.79v-.31z" fill="white"/>
+    </svg>
+  ),
+
   // Default fallback for unknown tokens
   DEFAULT: ({ className = "w-8 h-8" }) => (
     <svg className={className} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -137,8 +150,32 @@ interface TokenIconProps {
 }
 
 const TokenIcon: React.FC<TokenIconProps> = ({ symbol, className = "w-8 h-8" }) => {
+  // Handle special cases for yield-bearing tokens
+  let iconSymbol = symbol.toUpperCase()
+  
+  // For Morpho vault tokens, extract the underlying token symbol
+  if (symbol.includes('Steakhouse High Yield')) {
+    // Extract underlying token (e.g., "Steakhouse High Yield AUSD" -> "AUSD")
+    const match = symbol.match(/Steakhouse High Yield (\w+)/)
+    if (match) {
+      iconSymbol = match[1].toUpperCase()
+    }
+  }
+  // For Gauntlet vault tokens
+  else if (symbol.includes('Gauntlet')) {
+    // Extract underlying token (e.g., "Gauntlet AUSD" -> "AUSD")
+    const match = symbol.match(/Gauntlet (\w+)/)
+    if (match) {
+      iconSymbol = match[1].toUpperCase()
+    }
+  }
+  // For other aTokens (e.g., "aUSDC" -> "USDC")
+  else if (symbol.startsWith('a') && symbol.length > 1) {
+    iconSymbol = symbol.substring(1).toUpperCase()
+  }
+  
   // Get the icon component for the symbol, fallback to DEFAULT
-  const IconComponent = TOKEN_ICONS[symbol.toUpperCase()] || TOKEN_ICONS.DEFAULT
+  const IconComponent = TOKEN_ICONS[iconSymbol] || TOKEN_ICONS.DEFAULT
   
   return <IconComponent className={className} />
 }

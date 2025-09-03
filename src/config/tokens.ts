@@ -161,6 +161,16 @@ export const SUPPORTED_TOKENS: Record<string, TokenConfig> = {
     },
     coingeckoId: 'tether',
   },
+  AUSD: {
+    symbol: 'AUSD',
+    name: 'AUSD Stablecoin',
+    icon: 'ausd', // Will be rendered with dedicated AUSD icon
+    decimals: 6,
+    addresses: {
+      747474: '0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a', // Katana
+    },
+    coingeckoId: 'ausd',
+  },
 }
 
 // Helper functions
@@ -215,12 +225,21 @@ export const SUPPORTED_CHAINS: Chain[] = [
     explorerUrl: 'https://scan.coredao.org',
     factoryDeployed: true // TODO: Update based on actual deployment status
   },
+  {
+    id: 747474,
+    name: 'Katana',
+    icon: '🟡',
+    nativeCurrency: 'ETH',
+    explorerUrl: 'https://explorer.katanarpc.com',
+    factoryDeployed: true // TODO: Update based on actual deployment status
+  }
 ]
 
 // Chain-specific native currency information
 export const NATIVE_CURRENCIES = {
   42161: { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
   1116: { symbol: 'CORE', name: 'Core', decimals: 18 },
+  747474: { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
   // 1: { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
   // 137: { symbol: 'MATIC', name: 'Polygon', decimals: 18 },
 } as const

@@ -10,6 +10,7 @@ import { useAppStore, PortfolioData } from '@/store'
 const PROTOCOL_DISPLAY_NAMES: Record<string, string> = {
   'aave': 'Aave',
   'colend': 'Colend',
+  'morpho': 'Morpho',
   'compound': 'Compound',
   'maker': 'Maker',
   'uniswap': 'Uniswap',
@@ -33,6 +34,11 @@ const formatAssetType = (assetType: string, chainName?: string): string => {
   // Special case: Aave on Core chain is actually Colend
   if (assetType.toLowerCase().includes('aave') && chainName?.toLowerCase().includes('core')) {
     return 'Colend'
+  }
+  
+  // Special case: Morpho protocol on Katana chain for AUSD staking
+  if (assetType.toLowerCase().includes('morpho') && chainName?.toLowerCase().includes('katana')) {
+    return 'Morpho'
   }
   
   // Handle common patterns

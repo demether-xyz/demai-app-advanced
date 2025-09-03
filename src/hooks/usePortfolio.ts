@@ -59,6 +59,9 @@ export const usePortfolio = (shouldFetch: boolean = true) => {
       
       
       if (result.success && result.data) {
+        // Debug: Log the portfolio data to see what we're receiving
+        console.log('Portfolio API Response:', JSON.stringify(result.data, null, 2))
+        
         // Map the API response to our expected structure
         const portfolioData: PortfolioData = {
           total_value_usd: result.data.total_value_usd || 0,
